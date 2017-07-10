@@ -1,4 +1,8 @@
 #include "descartes_planner/graph_builder.h"
+namespace descartes_planner
+{
+  typedef boost::function<double(const double*, const double*)> CostFunction;
+}
 #include "descartes_planner/planning_graph_edge_policy.h"
 
 namespace // anon namespace to hide utility functions
@@ -34,7 +38,7 @@ Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d&
 {
   Eigen::Affine3d m = Eigen::Affine3d::Identity();
   m.matrix().block<3,3>(0,0) = orientation;
-  m.col(3).head<3>() = position;
+  m.matrix().col(3).head<3>() = position;
 
   Eigen::AngleAxisd z_rot (z_axis_angle, Eigen::Vector3d::UnitZ());
 
@@ -51,7 +55,7 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
   const descartes_core::TimingConstraint timing (dt);
 
   // Solve IK for each point
-  for (const std::size_t i = 0; i < ps.size(); ++i) //const auto& point : ps)
+  for (std::size_t i = 0; i < ps.size(); ++i) //const auto& point : ps)
   {
     const auto& point = ps[i];
     const Eigen::Affine3d pose = makePose(point, orientation, z_axis_angle);
@@ -98,7 +102,31 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
 
 void concatenate(descartes_planner::LadderGraph& dest, const descartes_planner::LadderGraph& src)
 {
+  assert(dest.size() > 0);
+  assert(src.size() > 0);
+  assert(dest.size() == src.size()); // same number of rungs
   // TODO
+  // Combines the joints and edges from one graph, src, into another, dest
+  // The joints copy straight over, but the index of the points needs to be transformed
+  for (std::size_t i = 0; i < src.size() - 1; ++i)
+  {
+    // Copy the joints
+    auto& dest_joints = dest.getRung(i).data;
+    const auto& src_joints = src.getRung(i).data;
+    dest_joints.insert(dest_joints.end(), src_joints.begin(), src_joints.end());
+
+    // Copy the edges and transform them
+    const auto next_rung_size = dest.rungSize(i + 1);
+    auto& dest_edges = dest.getEdges(i);
+    const auto& src_edges = dest.getEdges(i);
+    for (const auto& edge : src_edges)
+    {
+      auto edge_copy = edge;
+      for (auto& e : edge_copy)
+        e.idx += next_rung_size;
+      dest_edges.push_back(edge_copy);
+    }
+  }
 }
 
 } // end anon utility function ns
@@ -117,7 +145,7 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   const auto dt = (segment.end - segment.start).norm() / segment.linear_vel;
 
   LadderGraph graph {model.getDOF()};
-  graph.resize(points); // there will be a ladder rung for each point that we must solve
+  graph.resize(points.size()); // there will be a ladder rung for each point that we must solve
 
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)

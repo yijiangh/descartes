@@ -41,6 +41,13 @@ public:
     return *planning_graph_;
   }
 
+  PlanningGraph& getPlanningGraph()
+  {
+    return *planning_graph_;
+  }
+
+
+
 protected:
   descartes_core::TrajectoryPt::ID getPrevious(const descartes_core::TrajectoryPt::ID& ref_id);
   descartes_core::TrajectoryPt::ID getNext(const descartes_core::TrajectoryPt::ID& ref_id);

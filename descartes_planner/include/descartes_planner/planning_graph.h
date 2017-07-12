@@ -70,6 +70,11 @@ public:
 
   descartes_core::RobotModelConstPtr getRobotModel() const { return robot_model_; }
 
+  void setGraph(const descartes_planner::LadderGraph& graph)
+  {
+    graph_ = graph;
+  }
+
 protected:
   descartes_planner::LadderGraph graph_;
   descartes_core::RobotModelConstPtr robot_model_;

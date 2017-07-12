@@ -28,9 +28,10 @@ PositionVector discretizePositions(const Eigen::Vector3d& start, const Eigen::Ve
   for (std::size_t i = 0; i < total_points; ++i)
   {
     const double r = i / static_cast<double>(total_points - 1);
-    Eigen::Vector3d point = (stop - start) * r;
+    Eigen::Vector3d point = start + (stop - start) * r;
     result.push_back(point);
   }
+  return result;
 }
 
 Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
@@ -61,7 +62,6 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     const Eigen::Affine3d pose = makePose(point, orientation, z_axis_angle);
     std::vector<std::vector<double>> joint_poses;
     model.getAllIK(pose, joint_poses);
-
     graph.assignRung(i, descartes_core::TrajectoryID::make_nil(), timing, joint_poses);
   }
 
@@ -80,9 +80,9 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
 
     descartes_planner::DefaultEdgesWithTime builder (start_size, end_size, dof, tm.upper,
                                                      model.getJointVelocityLimits());
-    for (size_t i = 0; i < start_size; i++) // from rung
+    for (size_t k = 0; k < start_size; k++) // from rung
     {
-      const auto start_index = i * dof;
+      const auto start_index = k * dof;
 
       for (size_t j = 0; j < end_size; j++) // to rung
       {
@@ -90,8 +90,9 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
 
         builder.consider(&joints1[start_index], &joints2[end_index], j);
       }
-      builder.next(i);
+      builder.next(k);
     }
+
     std::vector<descartes_planner::LadderGraph::EdgeList> edges = builder.result();
     graph.assignEdges(i, std::move(edges));
   } // end edge loop
@@ -108,23 +109,26 @@ void concatenate(descartes_planner::LadderGraph& dest, const descartes_planner::
   // TODO
   // Combines the joints and edges from one graph, src, into another, dest
   // The joints copy straight over, but the index of the points needs to be transformed
-  for (std::size_t i = 0; i < src.size() - 1; ++i)
+  for (std::size_t i = 0; i < src.size(); ++i)
   {
     // Copy the joints
     auto& dest_joints = dest.getRung(i).data;
     const auto& src_joints = src.getRung(i).data;
     dest_joints.insert(dest_joints.end(), src_joints.begin(), src_joints.end());
 
-    // Copy the edges and transform them
-    const auto next_rung_size = dest.rungSize(i + 1);
-    auto& dest_edges = dest.getEdges(i);
-    const auto& src_edges = dest.getEdges(i);
-    for (const auto& edge : src_edges)
+    if (i != src.size() - 1)
     {
-      auto edge_copy = edge;
-      for (auto& e : edge_copy)
-        e.idx += next_rung_size;
-      dest_edges.push_back(edge_copy);
+      // Copy the edges and transform them
+      const auto next_rung_size = dest.rungSize(i + 1);
+      auto& dest_edges = dest.getEdges(i);
+      const auto& src_edges = src.getEdges(i);
+      for (const auto& edge : src_edges)
+      {
+        auto edge_copy = edge;
+        for (auto& e : edge_copy)
+          e.idx += next_rung_size;
+        dest_edges.push_back(edge_copy);
+      }
     }
   }
 }

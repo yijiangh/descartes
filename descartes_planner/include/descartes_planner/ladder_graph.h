@@ -52,6 +52,9 @@ public:
   using size_type = std::size_t;
   using EdgeList = Rung::EdgeList;
 
+  LadderGraph(const LadderGraph&) = default;
+  LadderGraph& operator=(const LadderGraph& other)=default;
+
   /**
    * @brief LadderGraph
    * @param dof The number of joints that constitute a single 'DOF'
@@ -224,7 +227,7 @@ public:
   }
 
 private:
-  const size_type dof_;
+  size_type dof_;
   std::vector<Rung> rungs_;
 };
 } // descartes_planner

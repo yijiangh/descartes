@@ -1,7 +1,7 @@
 #include "descartes_planner/graph_builder.h"
 namespace descartes_planner
 {
-  typedef boost::function<double(const double*, const double*)> CostFunction;
+typedef boost::function<double(const double*, const double*)> CostFunction;
 }
 #include "descartes_planner/planning_graph_edge_policy.h"
 
@@ -163,4 +163,48 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   }
 
   return graph;
+}
+
+void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &next)
+{
+  const auto ref_size = current.size();
+  const auto new_total_size = ref_size + next.size();
+
+  // So step 1 is to literally add the two sets of joints and edges together to make
+  // one longer graph
+  current.resize(new_total_size);
+  for (std::size_t i = 0; i < next.size(); ++i)
+  {
+    current.getRung(ref_size + i) = next.getRung(i);
+  }
+
+  // The second problem is that we now need to 'connect' the two graphs.
+  if (ref_size > 0 && next.size() > 0)
+  {
+    const auto dof = current.dof();
+    auto& a_rung = current.getRung(ref_size - 1);
+    auto& b_rung = current.getRung(ref_size);
+
+    const auto n_start = a_rung.data.size() / dof;
+    const auto n_end = b_rung.data.size() / dof;
+
+    descartes_planner::DefaultEdgesWithoutTime builder (n_start, n_end, dof);
+
+    for (size_t k = 0; k < n_start; k++) // from rung
+    {
+      const auto start_index = k * dof;
+
+      for (size_t j = 0; j < n_end; j++) // to rung
+      {
+        const auto end_index = j * dof;
+
+        builder.consider(&a_rung.data[start_index], &b_rung.data[end_index], j);
+      }
+      builder.next(k);
+    }
+
+    std::vector<descartes_planner::LadderGraph::EdgeList> edges = builder.result();
+    current.assignEdges(ref_size - 1, std::move(edges));
+  }
+
 }

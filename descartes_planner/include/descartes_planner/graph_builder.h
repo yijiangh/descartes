@@ -18,15 +18,19 @@ struct ConstrainedSegment
 {
   using OrientationVector = std::vector<Eigen::Matrix3d, Eigen::aligned_allocator<Eigen::Matrix3d>>;
 
-  Eigen::Vector3d retract_start, retract_end; /** Retract Start and end */
   Eigen::Vector3d start, end; /** Start and end of the linear segment in 3-space */
   OrientationVector orientations; /** All of the allowable orientations of the tool for this path */
   double linear_disc; /** The distance between sampled points in linear space (I'd like to do this automatically) */
   double linear_vel; /** Linear velocity between each disc point */
   double z_axis_disc; /** The distance between angular steps about z for each orientation */
+  double retract_dist;
+
+  int retract_start_pt_num;
+  int process_pt_num;
+  int retract_end_pt_num;
 };
 
-LadderGraph sampleConstrainedPaths(const descartes_core::RobotModel& model, const ConstrainedSegment& segment);
+LadderGraph sampleConstrainedPaths(const descartes_core::RobotModel& model, ConstrainedSegment& segment);
 
 // Appends 'next' to the end of 'current' to produce a new graph
 void appendInTime(LadderGraph& current, const LadderGraph& next);

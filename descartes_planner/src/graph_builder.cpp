@@ -34,6 +34,18 @@ PositionVector discretizePositions(const Eigen::Vector3d& start, const Eigen::Ve
   return result;
 }
 
+int getDiscretizeNum(const double dist, const double ds)
+{
+  int n_intermediate_points = 0;
+  if (dist > ds)
+  {
+    n_intermediate_points = std::lround(dist / ds);
+  }
+
+  int total_points_num = 2 + n_intermediate_points;
+  return total_points_num;
+}
+
 Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
                          const double z_axis_angle)
 {
@@ -136,15 +148,13 @@ void concatenate(descartes_planner::LadderGraph& dest, const descartes_planner::
 } // end anon utility function ns
 
 descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const descartes_core::RobotModel& model,
-                                                                         const ConstrainedSegment& segment)
+                                                                         ConstrainedSegment& segment)
 {
   // Determine the linear points
   auto points = discretizePositions(segment.start, segment.end, segment.linear_disc);
-  auto retract_start_pts =  discretizePositions(segment.retract_start, segment.start, segment.linear_disc);
-  auto retract_end_pts =  discretizePositions(segment.end, segment.retract_end, segment.linear_disc);
-
-  points.insert(points.begin(), retract_start_pts.begin(), retract_start_pts.end());
-  points.insert(points.end(), retract_end_pts.begin(), retract_end_pts.end());
+  segment.process_pt_num = points.size();
+  segment.retract_start_pt_num = 0;
+  segment.retract_end_pt_num = 0;
 
   // Compute the number of angle steps
   static const auto min_angle = -M_PI_2;
@@ -153,22 +163,35 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   const auto angle_step = (max_angle - min_angle) / n_angle_disc;
 
   // Compute the expected time step for each linear point
-  double traverse_length = (segment.end - segment.start).norm()
-      + (segment.retract_start - segment.start).norm()
-      + (segment.retract_end   - segment.end).norm();
-
+  double traverse_length = (segment.end - segment.start).norm() + 2 * segment.retract_dist;
   const auto dt =  traverse_length / segment.linear_vel;
 
+  // fill in retract pts number once for later path re-identification
+  segment.retract_start_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
+  segment.retract_end_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
+
   LadderGraph graph {model.getDOF()};
-  graph.resize(points.size()); // there will be a ladder rung for each point that we must solve
+  // there will be a ladder rung for each point that we must solve
+  graph.resize(points.size() + segment.retract_start_pt_num + segment.retract_end_pt_num);
 
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
   {
+    // add retract pts according to orientation
+    PositionVector process_pts = points;
+
+    Eigen::Vector3d translation_vec = orientation * Eigen::Vector3d(0, 0, segment.retract_dist);
+    auto retract_start_pts = discretizePositions(segment.start + translation_vec, segment.start, segment.linear_disc);
+    auto retract_end_pts = discretizePositions(segment.end, segment.end + translation_vec, segment.linear_disc);
+
+    process_pts.insert(process_pts.begin(), retract_start_pts.begin(), retract_start_pts.end());
+    process_pts.insert(process_pts.end(), retract_end_pts.begin(), retract_end_pts.end());
+
     for (long i = 0; i < n_angle_disc; ++i)
     {
       const auto angle = angle_step * i;
-      LadderGraph single_config_graph = sampleSingleConfig(model, points, dt, orientation, angle);
+
+      LadderGraph single_config_graph = sampleSingleConfig(model, process_pts, dt, orientation, angle);
       concatenate(graph, single_config_graph);
     }
   }

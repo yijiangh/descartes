@@ -30,3 +30,6 @@ devel/
 # temp files
 *~
 
+# clion generated files
+*/.idea/**
+*/cmake-build-debug/**

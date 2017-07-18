@@ -140,13 +140,24 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
 {
   // Determine the linear points
   auto points = discretizePositions(segment.start, segment.end, segment.linear_disc);
+  auto retract_start_pts =  discretizePositions(segment.retract_start, segment.start, segment.linear_disc);
+  auto retract_end_pts =  discretizePositions(segment.end, segment.retract_end, segment.linear_disc);
+
+  points.insert(points.begin(), retract_start_pts.begin(), retract_start_pts.end());
+  points.insert(points.end(), retract_end_pts.begin(), retract_end_pts.end());
+
   // Compute the number of angle steps
   static const auto min_angle = -M_PI_2;
   static const auto max_angle = M_PI_2;
   const auto n_angle_disc = std::lround( (max_angle - min_angle) / segment.z_axis_disc);
   const auto angle_step = (max_angle - min_angle) / n_angle_disc;
+
   // Compute the expected time step for each linear point
-  const auto dt = (segment.end - segment.start).norm() / segment.linear_vel;
+  double traverse_length = (segment.end - segment.start).norm()
+      + (segment.retract_start - segment.start).norm()
+      + (segment.retract_end   - segment.end).norm();
+
+  const auto dt =  traverse_length / segment.linear_vel;
 
   LadderGraph graph {model.getDOF()};
   graph.resize(points.size()); // there will be a ladder rung for each point that we must solve

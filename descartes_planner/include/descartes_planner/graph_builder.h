@@ -18,6 +18,7 @@ struct ConstrainedSegment
 {
   using OrientationVector = std::vector<Eigen::Matrix3d, Eigen::aligned_allocator<Eigen::Matrix3d>>;
 
+  Eigen::Vector3d retract_start, retract_end; /** Retract Start and end */
   Eigen::Vector3d start, end; /** Start and end of the linear segment in 3-space */
   OrientationVector orientations; /** All of the allowable orientations of the tool for this path */
   double linear_disc; /** The distance between sampled points in linear space (I'd like to do this automatically) */

@@ -180,7 +180,9 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
     // add retract pts according to orientation
     PositionVector process_pts = points;
 
-    Eigen::Vector3d translation_vec = orientation * Eigen::Vector3d(0, 0, segment.retract_dist);
+    // TODO: doing this here is messing things up, shouldn't get pose generation into this planning paradise
+    // NOTE: This piece of code is really project-oriented (framefab_mpp)!!!
+    Eigen::Vector3d translation_vec = orientation * Eigen::Vector3d(0, 0, -segment.retract_dist);
     auto retract_start_pts = discretizePositions(segment.start + translation_vec, segment.start, segment.linear_disc);
     auto retract_end_pts = discretizePositions(segment.end, segment.end + translation_vec, segment.linear_disc);
 

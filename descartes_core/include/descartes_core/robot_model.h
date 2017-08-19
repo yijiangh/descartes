@@ -144,6 +144,9 @@ public:
 
   virtual bool isValidMove(const double* s, const double* f, double dt) const = 0;
 
+  // collision checking patch
+  virtual bool updateInternals() const {}
+
 protected:
   RobotModel() : check_collisions_(false)
   {

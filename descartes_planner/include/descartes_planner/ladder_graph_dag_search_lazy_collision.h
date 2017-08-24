@@ -42,13 +42,18 @@ public:
   bool runOne();
 
 private:
+
+  enum class Checked : uint8_t {
+    UNKNOWN = 0, FREE = 1, COLLIDING = 2
+  };
+
   const LadderGraph& graph_;
 
   struct SolutionRung
   {
     std::vector<double> distance;
     std::vector<predecessor_t> predecessor;
-    std::vector<bool> valid;
+    std::vector<Checked> valid;
   };
 
   inline double& distance(size_type rung, size_type index) noexcept
@@ -66,15 +71,25 @@ private:
     return solution_[rung].predecessor[index];
   }
 
-  inline bool isValid(size_type rung, size_type index) const noexcept
+  inline Checked& valid(size_type rung, size_type index) noexcept
   {
     return solution_[rung].valid[index];
   }
 
-  inline void setValid(size_type rung, size_type index, bool value) noexcept
+  inline const Checked& valid(size_type rung, size_type index) const noexcept
   {
-    solution_[rung].valid[index] = value;
+    return solution_[rung].valid[index];
   }
+
+//  inline bool isValid(size_type rung, size_type index) const noexcept
+//  {
+//    return solution_[rung].valid[index];
+//  }
+
+//  inline void setValid(size_type rung, size_type index, bool value) noexcept
+//  {
+//    solution_[rung].valid[index] = value;
+//  }
 
   std::vector<SolutionRung> solution_;
 };

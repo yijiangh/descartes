@@ -14,7 +14,7 @@ DAGSearchLazyCollision::DAGSearchLazyCollision(const LadderGraph &graph)
     const auto n_vertices = graph.rungSize(i);
     solution_[i].distance.resize(n_vertices);
     solution_[i].predecessor.resize(n_vertices);
-    solution_[i].valid.resize(n_vertices, true); // all points start as valid
+    solution_[i].valid.resize(n_vertices, Checked::UNKNOWN); // all points start as valid
   }
 }
 
@@ -53,15 +53,23 @@ double DAGSearchLazyCollision::run(const std::vector<planning_scene::PlanningSce
       {
 //        ROS_INFO_STREAM("Rung " << rung);
         const auto idx = possible_path[rung];
-        const auto* data = graph_.vertex(rung, idx);
 
-        state.setJointGroupPositions(jmg, data);
-        state.update();
+        if (valid(rung, idx) == Checked::UNKNOWN)
+        {
+          const auto* data = graph_.vertex(rung, idx);
 
-        const planning_scene::PlanningScene& checker = *scenes[i];
-        bool is_valid = !checker.isStateColliding(state, "manipulator", false);
-        all_valid = all_valid && is_valid;
-        setValid(rung, idx, is_valid);
+          state.setJointGroupPositions(jmg, data);
+          state.update();
+
+          const planning_scene::PlanningScene& checker = *scenes[i];
+          bool is_valid = !checker.isStateColliding(state, "manipulator", false);
+          all_valid = all_valid && is_valid;
+          valid(rung, idx) = is_valid ? Checked::FREE : Checked::COLLIDING;
+        }
+        else if (valid(rung, idx) == Checked::COLLIDING)
+        {
+          all_valid = false;
+        } // otherwise we're good!
       }
       current_index = end_rung;
     }
@@ -93,7 +101,7 @@ bool DAGSearchLazyCollision::runOne()
     // For each vertex in the out edge list
     for (size_t index = 0; index < n_vertices; ++index)
     {
-      if (!isValid(rung, index)) continue;
+      if (valid(rung, index) == Checked::COLLIDING) continue;
 
       const auto u_cost = distance(rung, index);
       const auto& edges = graph_.getEdges(rung)[index];
@@ -101,7 +109,7 @@ bool DAGSearchLazyCollision::runOne()
       for (const auto& edge : edges)
       {
         auto dv = u_cost + edge.cost; // new cost
-        if (dv < distance(next_rung, edge.idx) && isValid(next_rung, edge.idx))
+        if (dv < distance(next_rung, edge.idx) && valid(next_rung, edge.idx) != Checked::COLLIDING)
         {
           distance(next_rung, edge.idx) = dv;
           predecessor(next_rung, edge.idx) = index; // the predecessor's rung is implied to be the current rung

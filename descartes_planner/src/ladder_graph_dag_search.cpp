@@ -21,23 +21,27 @@ double DAGSearch::run()
 {
   // Cost to the first rung should be set to zero
   std::fill(solution_.front().distance.begin(), solution_.front().distance.end(), 0.0);
-  // Other rows initialize to zero
+  // Other rows initialize to inf
   for (size_type i = 1; i < solution_.size(); ++i)
   {
     std::fill(solution_[i].distance.begin(), solution_[i].distance.end(), std::numeric_limits<double>::max());
   }
+
+	ROS_INFO_STREAM("[descartes DAG] init cost done, " << "we have " << solution_.size() << "rungs.");
 
   // Now we iterate over the graph in 'topological' order
   for (size_type rung = 0; rung < solution_.size() - 1; ++rung)
   {
     const auto n_vertices = graph_.rungSize(rung);
     const auto next_rung = rung + 1;
-    // For each vertex in the out edge list
+    
+		// For each vertex in the out edge list
     for (size_t index = 0; index < n_vertices; ++index)
     {
       const auto u_cost = distance(rung, index);
       const auto& edges = graph_.getEdges(rung)[index];
-      // for each out edge
+      
+			// for each out edge
       for (const auto& edge : edges)
       {
         auto dv = u_cost + edge.cost; // new cost
@@ -47,7 +51,11 @@ double DAGSearch::run()
           predecessor(next_rung, edge.idx) = index; // the predecessor's rung is implied to be the current rung
         }
       }
+
+			ROS_INFO_STREAM("rung #" << rung << ", vert #" << index);
     } // vertex for loop
+		
+		ROS_INFO_STREAM("[DAG] rung #" << rung << "done");
   } // rung for loop
 
   return *std::min_element(solution_.back().distance.begin(), solution_.back().distance.end());

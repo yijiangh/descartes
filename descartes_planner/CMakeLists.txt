@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   pluginlib
   cmake_modules
+  rviz_visual_tools
 )
 
 find_package(Boost REQUIRED)

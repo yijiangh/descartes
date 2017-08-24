@@ -5,6 +5,9 @@ typedef boost::function<double(const double*, const double*)> CostFunction;
 }
 #include "descartes_planner/planning_graph_edge_policy.h"
 
+// For visualizing in rviz
+#include <rviz_visual_tools/rviz_visual_tools.h>
+
 namespace // anon namespace to hide utility functions
 {
 
@@ -67,6 +70,11 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
 
   const descartes_core::TimingConstraint timing (dt);
 
+//  rviz_visual_tools::RvizVisualToolsPtr visual_tools;
+//  visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world_frame", "pose_v"));
+////  visual_tools->deleteAllMarkers();
+//  visual_tools->enableBatchPublishing();
+
   // Solve IK for each point
   for (std::size_t i = 0; i < ps.size(); ++i) //const auto& point : ps)
   {
@@ -75,7 +83,11 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     std::vector<std::vector<double>> joint_poses;
     model.getAllIK(pose, joint_poses);
     graph.assignRung(i, descartes_core::TrajectoryID::make_nil(), timing, joint_poses);
+
+//    visual_tools->publishAxis(pose, 0.01, 0.0001, "Axis");
   }
+
+//  visual_tools->trigger();
 
   // now we have a graph with data in the 'rungs' and we need to compute the edges
   for (std::size_t i = 0; i < graph.size() - 1; ++i)
@@ -174,11 +186,18 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   // there will be a ladder rung for each point that we must solve
   graph.resize(points.size() + segment.retract_start_pt_num + segment.retract_end_pt_num);
 
+  int cnt = 0;
+  rviz_visual_tools::RvizVisualTools visual_tools = rviz_visual_tools::RvizVisualTools("world_frame", "pose_v");
+//  visual_tools.deleteAllMarkers();
+  visual_tools.enableBatchPublishing();
+
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
   {
     // add retract pts according to orientation
     PositionVector process_pts = points;
+
+    ROS_INFO_STREAM("orient #" << cnt << orientation);
 
     // TODO: doing this here is messing things up, shouldn't get pose generation into this planning paradise
     // NOTE: This piece of code is really project-oriented (framefab_mpp)!!!
@@ -189,13 +208,35 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
     process_pts.insert(process_pts.begin(), retract_start_pts.begin(), retract_start_pts.end());
     process_pts.insert(process_pts.end(), retract_end_pts.begin(), retract_end_pts.end());
 
-    for (long i = 0; i < n_angle_disc; ++i)
+    ROS_INFO_STREAM("process_pts num: " << process_pts.size());
+    int p_cnt = 0;
+    for(auto v : process_pts)
+    {
+      ROS_INFO_STREAM("id " << p_cnt << v);
+      p_cnt++;
+    }
+
+    for(std::size_t i = 0; i < n_angle_disc; ++i)
     {
       const auto angle = angle_step * i;
 
       LadderGraph single_config_graph = sampleSingleConfig(model, process_pts, dt, orientation, angle);
       concatenate(graph, single_config_graph);
     }
+    cnt++;
+
+    for(auto v : process_pts)
+    {
+      const Eigen::Affine3d pose = makePose(v, orientation, 0);
+      visual_tools.publishAxis(pose, 0.01, 0.0001, "Axis");
+    }
+  }
+
+  visual_tools.trigger();
+
+  for(std::size_t i = 0; i < graph.size(); i++)
+  {
+    ROS_INFO_STREAM("rung #" << i << ", vert size" << graph.rungSize(i));
   }
 
   return graph;

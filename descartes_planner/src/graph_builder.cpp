@@ -77,6 +77,8 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     graph.assignRung(i, descartes_core::TrajectoryID::make_nil(), timing, joint_poses);
   }
 
+  bool has_edges_t = true;
+
   // now we have a graph with data in the 'rungs' and we need to compute the edges
   for (std::size_t i = 0; i < graph.size() - 1; ++i)
   {
@@ -106,10 +108,17 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     }
 
     std::vector<descartes_planner::LadderGraph::EdgeList> edges = builder.result();
+    if (!builder.hasEdges())
+    {
+//      ROS_WARN("No edges");
+    }
+    has_edges_t = has_edges_t && builder.hasEdges();
     graph.assignEdges(i, std::move(edges));
   } // end edge loop
 
 
+  if (has_edges_t) ROS_ERROR("Lots of edges");
+  else ROS_ERROR("No edges...");
   return graph;
 }
 
@@ -163,31 +172,25 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   const auto angle_step = (max_angle - min_angle) / n_angle_disc;
 
   // Compute the expected time step for each linear point
-  double traverse_length = (segment.end - segment.start).norm() + 2 * segment.retract_dist;
+  double traverse_length = (segment.end - segment.start).norm();
   const auto dt =  traverse_length / segment.linear_vel;
 
   // fill in retract pts number once for later path re-identification
-  segment.retract_start_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
-  segment.retract_end_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
+//  segment.retract_start_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
+//  segment.retract_end_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
 
   LadderGraph graph {model.getDOF()};
   // there will be a ladder rung for each point that we must solve
-  graph.resize(points.size() + segment.retract_start_pt_num + segment.retract_end_pt_num);
+  graph.resize(points.size());
 
+  ROS_INFO_STREAM("Point has " << segment.orientations.size() << " orientations");
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
   {
+    ROS_INFO_STREAM("Orientation:\n" << orientation);
+
     // add retract pts according to orientation
     PositionVector process_pts = points;
-
-    // TODO: doing this here is messing things up, shouldn't get pose generation into this planning paradise
-    // NOTE: This piece of code is really project-oriented (framefab_mpp)!!!
-    Eigen::Vector3d translation_vec = orientation * Eigen::Vector3d(0, 0, -segment.retract_dist);
-    auto retract_start_pts = discretizePositions(segment.start + translation_vec, segment.start, segment.linear_disc);
-    auto retract_end_pts = discretizePositions(segment.end, segment.end + translation_vec, segment.linear_disc);
-
-    process_pts.insert(process_pts.begin(), retract_start_pts.begin(), retract_start_pts.end());
-    process_pts.insert(process_pts.end(), retract_end_pts.begin(), retract_end_pts.end());
 
     for (long i = 0; i < n_angle_disc; ++i)
     {

@@ -221,6 +221,14 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
       const auto angle = angle_step * i;
 
       LadderGraph single_config_graph = sampleSingleConfig(model, process_pts, dt, orientation, angle);
+
+      ROS_INFO_STREAM("disc #" << i);
+
+      for(std::size_t j = 0; j < single_config_graph.size(); j++)
+      {
+        ROS_INFO_STREAM("rung #" << j << ", vert size" << single_config_graph.rungSize(j));
+      }
+
       concatenate(graph, single_config_graph);
     }
     cnt++;

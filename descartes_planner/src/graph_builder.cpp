@@ -70,10 +70,9 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
 
   const descartes_core::TimingConstraint timing (dt);
 
-//  rviz_visual_tools::RvizVisualToolsPtr visual_tools;
-//  visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world_frame", "pose_v"));
-////  visual_tools->deleteAllMarkers();
-//  visual_tools->enableBatchPublishing();
+  rviz_visual_tools::RvizVisualToolsPtr visual_tools;
+  visual_tools.reset(new rviz_visual_tools::RvizVisualTools("world_frame", "pose_v"));
+  visual_tools->enableBatchPublishing();
 
   // Solve IK for each point
   for (std::size_t i = 0; i < ps.size(); ++i) //const auto& point : ps)
@@ -82,12 +81,15 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     const Eigen::Affine3d pose = makePose(point, orientation, z_axis_angle);
     std::vector<std::vector<double>> joint_poses;
     model.getAllIK(pose, joint_poses);
+
+    ROS_INFO_STREAM("pose #" << i << ", " << "joint pose sol num " << joint_poses.size());
+
     graph.assignRung(i, descartes_core::TrajectoryID::make_nil(), timing, joint_poses);
 
-//    visual_tools->publishAxis(pose, 0.01, 0.0001, "Axis");
+    visual_tools->publishAxis(pose, 0.01, 0.0001, "Axis");
   }
 
-//  visual_tools->trigger();
+  visual_tools->trigger();
 
   // now we have a graph with data in the 'rungs' and we need to compute the edges
   for (std::size_t i = 0; i < graph.size() - 1; ++i)
@@ -169,8 +171,8 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   segment.retract_end_pt_num = 0;
 
   // Compute the number of angle steps
-  static const auto min_angle = -M_PI_2;
-  static const auto max_angle = M_PI_2;
+  static const auto min_angle = -M_PI;
+  static const auto max_angle = M_PI;
   const auto n_angle_disc = std::lround( (max_angle - min_angle) / segment.z_axis_disc);
   const auto angle_step = (max_angle - min_angle) / n_angle_disc;
 
@@ -187,9 +189,6 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   graph.resize(points.size() + segment.retract_start_pt_num + segment.retract_end_pt_num);
 
   int cnt = 0;
-  rviz_visual_tools::RvizVisualTools visual_tools = rviz_visual_tools::RvizVisualTools("world_frame", "pose_v");
-//  visual_tools.deleteAllMarkers();
-  visual_tools.enableBatchPublishing();
 
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
@@ -197,10 +196,6 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
     // add retract pts according to orientation
     PositionVector process_pts = points;
 
-    ROS_INFO_STREAM("orient #" << cnt << orientation);
-
-    // TODO: doing this here is messing things up, shouldn't get pose generation into this planning paradise
-    // NOTE: This piece of code is really project-oriented (framefab_mpp)!!!
     Eigen::Vector3d translation_vec = orientation * Eigen::Vector3d(0, 0, -segment.retract_dist);
     auto retract_start_pts = discretizePositions(segment.start + translation_vec, segment.start, segment.linear_disc);
     auto retract_end_pts = discretizePositions(segment.end, segment.end + translation_vec, segment.linear_disc);
@@ -208,43 +203,17 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
     process_pts.insert(process_pts.begin(), retract_start_pts.begin(), retract_start_pts.end());
     process_pts.insert(process_pts.end(), retract_end_pts.begin(), retract_end_pts.end());
 
-    ROS_INFO_STREAM("process_pts num: " << process_pts.size());
-    int p_cnt = 0;
-    for(auto v : process_pts)
-    {
-      ROS_INFO_STREAM("id " << p_cnt << v);
-      p_cnt++;
-    }
-
     for(std::size_t i = 0; i < n_angle_disc; ++i)
     {
       const auto angle = angle_step * i;
 
+      ROS_INFO_STREAM("orient #" << cnt << ", disc #" << i);
       LadderGraph single_config_graph = sampleSingleConfig(model, process_pts, dt, orientation, angle);
-
-      ROS_INFO_STREAM("disc #" << i);
-
-      for(std::size_t j = 0; j < single_config_graph.size(); j++)
-      {
-        ROS_INFO_STREAM("rung #" << j << ", vert size" << single_config_graph.rungSize(j));
-      }
 
       concatenate(graph, single_config_graph);
     }
+
     cnt++;
-
-    for(auto v : process_pts)
-    {
-      const Eigen::Affine3d pose = makePose(v, orientation, 0);
-      visual_tools.publishAxis(pose, 0.01, 0.0001, "Axis");
-    }
-  }
-
-  visual_tools.trigger();
-
-  for(std::size_t i = 0; i < graph.size(); i++)
-  {
-    ROS_INFO_STREAM("rung #" << i << ", vert size" << graph.rungSize(i));
   }
 
   return graph;
@@ -291,5 +260,4 @@ void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &ne
     std::vector<descartes_planner::LadderGraph::EdgeList> edges = builder.result();
     current.assignEdges(ref_size - 1, std::move(edges));
   }
-
 }

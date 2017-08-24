@@ -20,6 +20,7 @@
 #define DESCARTES_LADDER_GRAPH_DAG_LAZY_COLLISION_H
 
 #include "descartes_planner/ladder_graph.h"
+#include <moveit/planning_scene/planning_scene.h>
 
 namespace descartes_planner
 {
@@ -31,11 +32,14 @@ public:
   using predecessor_t = unsigned;
   using size_type = std::size_t;
 
-  explicit DAGSearch(const LadderGraph& graph);
+  explicit DAGSearchLazyCollision(const LadderGraph& graph);
 
-  double run();
+  double run(const std::vector<planning_scene::PlanningScenePtr>& scenes,
+             const std::vector<size_type>& scene_max_indices);
 
   std::vector<predecessor_t> shortestPath() const;
+
+  bool runOne();
 
 private:
   const LadderGraph& graph_;
@@ -60,6 +64,16 @@ private:
   inline const predecessor_t& predecessor(size_type rung, size_type index) const noexcept
   {
     return solution_[rung].predecessor[index];
+  }
+
+  inline bool isValid(size_type rung, size_type index) const noexcept
+  {
+    return solution_[rung].valid[index];
+  }
+
+  inline void setValid(size_type rung, size_type index, bool value) noexcept
+  {
+    solution_[rung].valid[index] = value;
   }
 
   std::vector<SolutionRung> solution_;

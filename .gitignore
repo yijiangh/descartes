@@ -33,3 +33,5 @@ devel/
 # clion generated files
 **/.idea
 **/cmake-build-debug
+
+**.orig

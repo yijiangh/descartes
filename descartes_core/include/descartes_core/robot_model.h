@@ -22,6 +22,7 @@
 // TODO: The include below picks up Eigen::Affine3d, but there is probably a better way
 #include <moveit/kinematic_constraints/kinematic_constraint.h>
 #include "descartes_core/utils.h"
+#include "moveit/planning_scene/planning_scene.h"
 
 namespace descartes_core
 {
@@ -125,6 +126,10 @@ public:
   virtual bool getCheckCollisions()
   {
     return check_collisions_;
+  }
+
+  virtual void setPlanningScene(planning_scene::PlanningScenePtr)
+  {
   }
 
 

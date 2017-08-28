@@ -100,6 +100,11 @@ public:
    */
   void setState(const moveit::core::RobotState &state);
 
+  virtual void setPlanningScene(planning_scene::PlanningScenePtr scene)
+  {
+    planning_scene_ = scene;
+  }
+
 protected:
   /**
    * Gets IK solution (assumes robot state is pre-seeded)

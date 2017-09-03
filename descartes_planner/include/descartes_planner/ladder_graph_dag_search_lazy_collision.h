@@ -43,7 +43,8 @@ public:
 
 private:
 
-  enum class Checked : uint8_t {
+  enum class Checked : uint8_t
+  {
     UNKNOWN = 0, FREE = 1, COLLIDING = 2
   };
 

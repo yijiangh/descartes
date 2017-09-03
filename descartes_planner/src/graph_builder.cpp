@@ -116,9 +116,15 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     graph.assignEdges(i, std::move(edges));
   } // end edge loop
 
+  if (has_edges_t)
+  {
+    ROS_WARN("Lots of edges");
+  }
+  else
+  {
+    ROS_ERROR("No edges...");
+  }
 
-  if (has_edges_t) ROS_ERROR("Lots of edges");
-  else ROS_ERROR("No edges...");
   return graph;
 }
 
@@ -166,18 +172,14 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   segment.retract_end_pt_num = 0;
 
   // Compute the number of angle steps
-  static const auto min_angle = -M_PI_2;
-  static const auto max_angle = M_PI_2;
+  static const auto min_angle = -M_PI;
+  static const auto max_angle = M_PI;
   const auto n_angle_disc = std::lround( (max_angle - min_angle) / segment.z_axis_disc);
   const auto angle_step = (max_angle - min_angle) / n_angle_disc;
 
   // Compute the expected time step for each linear point
   double traverse_length = (segment.end - segment.start).norm();
   const auto dt =  traverse_length / segment.linear_vel;
-
-  // fill in retract pts number once for later path re-identification
-//  segment.retract_start_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
-//  segment.retract_end_pt_num = getDiscretizeNum(segment.retract_dist, segment.linear_disc);
 
   LadderGraph graph {model.getDOF()};
   // there will be a ladder rung for each point that we must solve
@@ -187,7 +189,7 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
   {
-    ROS_INFO_STREAM("Orientation:\n" << orientation);
+//    ROS_INFO_STREAM("Orientation:\n" << orientation);
 
     // add retract pts according to orientation
     PositionVector process_pts = points;

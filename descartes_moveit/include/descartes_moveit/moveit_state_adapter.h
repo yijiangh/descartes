@@ -63,9 +63,6 @@ public:
   virtual bool isValidMove(const double* from_joint_pose, const double* to_joint_pose,
                            double dt) const;
 
-  // collision checking patch
-  virtual bool updateInternals() const;
-
   virtual std::vector<double> getJointVelocityLimits() const override;
   /**
    * @brief Set the initial states used for iterative inverse kineamtics
@@ -161,12 +158,6 @@ protected:
    * @brief convenient transformation frame
    */
   descartes_core::Frame world_to_root_;
-
-  /**
-   * @brief Planning scene monitor (used to update internal planning scene)
-  */
-  planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_;
-
 };
 
 }  // descartes_moveit

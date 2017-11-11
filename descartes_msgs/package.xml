@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>descartes_msgs</name>
+  <version>0.1.0</version>
+  <description>The descartes_msgs package</description>
+  <author email="yijiangh@mit.edu">Yijiang Huang</author>
+	
+  <maintainer email="yijiangh@mit.edu">Yijiang Huang</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>genmsg</depend>
+  <depend>message_runtime</depend>
+
+</package>

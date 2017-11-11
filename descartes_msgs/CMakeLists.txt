@@ -26,6 +26,7 @@ add_message_files(
 		msg 
 		FILES 
 		LadderGraph.msg
+		LadderGraphList.msg
 		LadderGraphEdge.msg
 		LadderGraphEdgeList.msg
 		LadderGraphRung.msg
@@ -38,14 +39,15 @@ add_message_files(
 #)
 
 ## Generate added messages and services with any dependencies listed here
-#generate_messages(DEPENDENCIES 
+generate_messages(
+#	DEPENDENCIES
 #  actionlib_msgs
 #  geometry_msgs
 #  sensor_msgs
 #  visualization_msgs
 #  trajectory_msgs
 #  moveit_msgs
-#)
+)
 
 ###################################
 ## catkin specific configuration ##

@@ -116,14 +116,14 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
     graph.assignEdges(i, std::move(edges));
   } // end edge loop
 
-  if (has_edges_t)
-  {
-    ROS_WARN("Lots of edges");
-  }
-  else
-  {
-    ROS_ERROR("No edges...");
-  }
+//  if (has_edges_t)
+//  {
+//    ROS_WARN("Lots of edges");
+//  }
+//  else
+//  {
+//    ROS_ERROR("No edges...");
+//  }
 
   return graph;
 }
@@ -185,7 +185,7 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   // there will be a ladder rung for each point that we must solve
   graph.resize(points.size());
 
-  ROS_INFO_STREAM("Point has " << segment.orientations.size() << " orientations");
+//  ROS_INFO_STREAM("Point has " << segment.orientations.size() << " orientations");
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
   {

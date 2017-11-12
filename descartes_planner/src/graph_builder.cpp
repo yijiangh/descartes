@@ -62,7 +62,7 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
                                                   const double dt, const Eigen::Matrix3d& orientation,
                                                   const double z_axis_angle)
 {
-  descartes_planner::LadderGraph graph {model.getDOF()};
+  descartes_planner::LadderGraph graph(model.getDOF());
   graph.resize(ps.size());
 
   const descartes_core::TimingConstraint timing (dt);
@@ -181,7 +181,7 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   double traverse_length = (segment.end - segment.start).norm();
   const auto dt =  traverse_length / segment.linear_vel;
 
-  LadderGraph graph {model.getDOF()};
+  LadderGraph graph(model.getDOF());
   // there will be a ladder rung for each point that we must solve
   graph.resize(points.size());
 

@@ -194,6 +194,19 @@ public:
     getEdges(index).resize(r.data.size());
   }
 
+  void assignRung(size_type index, descartes_core::TrajectoryID id, descartes_core::TimingConstraint time,
+                  const std::vector<double>& data)
+  {
+    Rung& r = getRung(index);
+    r.id = id;
+    r.timing = time;
+    r.data.reserve(data.size());
+    r.data.insert(r.data.end(), data.cbegin(), data.cend());
+
+    // Given this new vertex set, build an edge list for each
+    getEdges(index).resize(r.data.size());
+  }
+
   void removeRung(size_type index)
   {
     rungs_.erase(std::next(rungs_.begin(), index));

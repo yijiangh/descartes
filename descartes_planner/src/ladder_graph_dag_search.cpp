@@ -59,6 +59,10 @@ std::vector<DAGSearch::predecessor_t> DAGSearch::shortestPath() const
 {
   auto min_it = std::min_element(solution_.back().distance.begin(), solution_.back().distance.end());
   auto min_idx = std::distance(solution_.back().distance.begin(), min_it);
+
+//  ROS_INFO_STREAM("[DAG search] solutions size: " << solution_.size());
+//  ROS_INFO_STREAM("[DAG search] min_idx of the solutions (should >= 0): " << min_idx);
+
   assert(min_idx >= 0);
 
   std::vector<predecessor_t> path (solution_.size());
@@ -66,13 +70,27 @@ std::vector<DAGSearch::predecessor_t> DAGSearch::shortestPath() const
   size_type current_rung = path.size() - 1;
   size_type current_index = min_idx;
 
-  for (unsigned i = 0; i < path.size(); ++i)
+  // trace back to the beginning
+  for (int i = 0; i < path.size(); ++i)
   {
-    auto count = path.size() - 1 - i;
-    assert(current_rung == count);
-    path[count] = current_index;
-    current_index = predecessor(current_rung, current_index);
-    current_rung -= 1;
+    try
+    {
+      auto count = path.size() - 1 - i;
+      assert(current_rung == count);
+      path[count] = current_index;
+      current_index = predecessor(current_rung, current_index);
+      current_rung -= 1;
+
+      if(current_index != count)
+      {
+        throw i;
+      }
+    }
+
+    catch (int i)
+    {
+      ROS_WARN_STREAM("[DAG shortest path] path traceback fails at #" << i);
+    }
   }
 
   return path;

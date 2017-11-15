@@ -206,7 +206,7 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   return graph;
 }
 
-void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &next)
+void descartes_planner::appendInTime(LadderGraph &current, LadderGraph& next)
 {
   const auto ref_size = current.size();
   const auto new_total_size = ref_size + next.size();

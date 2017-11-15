@@ -13,17 +13,17 @@
 namespace descartes_parser
 {
 
-descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::LadderGraph& graph)
+descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::LadderGraph* ptr_graph)
 {
   descartes_msgs::LadderGraph graph_msg;
-  graph_msg.rungs.reserve(graph.size());
+  graph_msg.rungs.reserve(ptr_graph->size());
 
-  graph_msg.dof = graph.dof();
+  graph_msg.dof = ptr_graph->dof();
 
   std::size_t i = 0;
   do
   {
-    descartes_planner::Rung rung = graph.getRung(i);
+    descartes_planner::Rung rung = ptr_graph->getRung(i);
     descartes_msgs::LadderGraphRung rung_msg;
 
     rung_msg.dt = rung.timing.lower;
@@ -51,27 +51,27 @@ descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::Lad
     graph_msg.rungs.push_back(rung_msg);
 
     i++;
-  } while(i < graph.size());
+  } while(i < ptr_graph->size());
 
   return graph_msg;
 }
 
-descartes_msgs::LadderGraphList convertToLadderGraphMsg(const std::vector<descartes_planner::LadderGraph>& graphs)
+descartes_msgs::LadderGraphList convertToLadderGraphMsg(const std::vector<descartes_planner::LadderGraph*>& graphs)
 {
   descartes_msgs::LadderGraphList graph_list_msg;
 
-  for(const auto& unit_graph : graphs)
+  for(const auto& graph_ptr : graphs)
   {
-    graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(unit_graph));
+    graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(graph_ptr));
   }
 
   return graph_list_msg;
 }
 
-descartes_planner::LadderGraph convertToLadderGraph(const descartes_msgs::LadderGraph& graph_msg)
+descartes_planner::LadderGraph* convertToLadderGraphPtr(const descartes_msgs::LadderGraph& graph_msg)
 {
-  descartes_planner::LadderGraph graph(graph_msg.dof);
-  graph.resize(graph_msg.rungs.size());
+  auto* ptr_graph = new descartes_planner::LadderGraph(graph_msg.dof);
+  ptr_graph->resize(graph_msg.rungs.size());
 
   for(std::size_t i=0; i < graph_msg.rungs.size(); i++)
   {
@@ -79,7 +79,7 @@ descartes_planner::LadderGraph convertToLadderGraph(const descartes_msgs::Ladder
 
     const descartes_core::TimingConstraint timing(r_msg.dt);
 
-    graph.assignRung(i, descartes_core::TrajectoryID::make_nil(), timing, r_msg.data);
+    ptr_graph->assignRung(i, descartes_core::TrajectoryID::make_nil(), timing, r_msg.data);
 
     std::vector<std::vector<descartes_planner::Edge>> rung_edges;
     rung_edges.reserve(r_msg.edges.size());
@@ -102,22 +102,23 @@ descartes_planner::LadderGraph convertToLadderGraph(const descartes_msgs::Ladder
       rung_edges.push_back(elist);
     }
 
-    graph.assignEdges(i, std::move(rung_edges));
+    ptr_graph->assignEdges(i, std::move(rung_edges));
   }
 
-  return graph;
+  return ptr_graph;
 }
 
-std::vector<descartes_planner::LadderGraph> convertToLadderGraphList(const descartes_msgs::LadderGraphList& graph_list_msg)
+std::vector<descartes_planner::LadderGraph*> convertToLadderGraphPtrList(const descartes_msgs::LadderGraphList& graph_list_msg)
 {
-  std::vector<descartes_planner::LadderGraph> graph_list;
-  graph_list.reserve(graph_list_msg.graph_list.size());
+  std::vector<descartes_planner::LadderGraph*> graph_ptr_list;
+
+  graph_ptr_list.reserve(graph_list_msg.graph_list.size());
 
   for(const auto& graph_msg : graph_list_msg.graph_list)
   {
-    graph_list.push_back(convertToLadderGraph(graph_msg));
+    graph_ptr_list.push_back(convertToLadderGraphPtr(graph_msg));
   }
 
-  return graph_list;
+  return graph_ptr_list;
 }
 } // end namespace descartes_parser

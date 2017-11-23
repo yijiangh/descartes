@@ -8,11 +8,9 @@ typedef boost::function<double(const double*, const double*)> CostFunction;
 namespace // anon namespace to hide utility functions
 {
 
-using PositionVector = std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>;
-
 // Generate evenly sampled point at some discretization 'ds' between start and stop.
 // ds must be > 0
-PositionVector discretizePositions(const Eigen::Vector3d& start, const Eigen::Vector3d& stop, const double ds)
+std::vector<Eigen::Vector3d> discretizePositions(const Eigen::Vector3d& start, const Eigen::Vector3d& stop, const double ds)
 {
   auto dist = (stop - start).norm();
 
@@ -22,7 +20,7 @@ PositionVector discretizePositions(const Eigen::Vector3d& start, const Eigen::Ve
 
   const auto total_points = 2 + n_intermediate_points;
 
-  PositionVector result;
+  std::vector<Eigen::Vector3d> result;
   result.reserve(total_points);
 
   for (std::size_t i = 0; i < total_points; ++i)
@@ -32,18 +30,6 @@ PositionVector discretizePositions(const Eigen::Vector3d& start, const Eigen::Ve
     result.push_back(point);
   }
   return result;
-}
-
-int getDiscretizeNum(const double dist, const double ds)
-{
-  int n_intermediate_points = 0;
-  if (dist > ds)
-  {
-    n_intermediate_points = std::lround(dist / ds);
-  }
-
-  int total_points_num = 2 + n_intermediate_points;
-  return total_points_num;
 }
 
 Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d& orientation,
@@ -58,14 +44,15 @@ Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d&
   return m * z_rot;
 }
 
-descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotModel& model, const PositionVector& ps,
+descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotModel& model,
+                                                  const std::vector<Eigen::Vector3d>& ps,
                                                   const double dt, const Eigen::Matrix3d& orientation,
                                                   const double z_axis_angle)
 {
   descartes_planner::LadderGraph graph(model.getDOF());
   graph.resize(ps.size());
 
-  const descartes_core::TimingConstraint timing (dt);
+  const descartes_core::TimingConstraint timing(dt);
 
   // Solve IK for each point
   for (std::size_t i = 0; i < ps.size(); ++i) //const auto& point : ps)
@@ -80,6 +67,7 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
   bool has_edges_t = true;
 
   // now we have a graph with data in the 'rungs' and we need to compute the edges
+  // for the last rung, there's no out edge
   for (std::size_t i = 0; i < graph.size() - 1; ++i)
   {
     const auto start_idx = i;
@@ -167,9 +155,6 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
 {
   // Determine the linear points
   auto points = discretizePositions(segment.start, segment.end, segment.linear_disc);
-  segment.process_pt_num = points.size();
-  segment.retract_start_pt_num = 0;
-  segment.retract_end_pt_num = 0;
 
   // Compute the number of angle steps
   static const auto min_angle = -M_PI;
@@ -186,13 +171,11 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   graph.resize(points.size());
 
 //  ROS_INFO_STREAM("Point has " << segment.orientations.size() << " orientations");
+
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
   {
-//    ROS_INFO_STREAM("Orientation:\n" << orientation);
-
-    // add retract pts according to orientation
-    PositionVector process_pts = points;
+    std::vector<Eigen::Vector3d> process_pts = points;
 
     for (long i = 0; i < n_angle_disc; ++i)
     {
@@ -247,5 +230,4 @@ void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &ne
     std::vector<descartes_planner::LadderGraph::EdgeList> edges = builder.result();
     current.assignEdges(ref_size - 1, std::move(edges));
   }
-
 }

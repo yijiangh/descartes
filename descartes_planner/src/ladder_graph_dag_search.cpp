@@ -38,7 +38,7 @@ double DAGSearch::run()
   {
     const auto n_vertices = graph_.rungSize(rung_id);
     const auto next_rung_id = rung_id + 1;
-    
+
     // For each vertex in current rung
     for (size_t vert_id = 0; vert_id < n_vertices; ++vert_id)
     {
@@ -66,7 +66,7 @@ double DAGSearch::run()
     } // vertex for loop
   } // rung for loop
 
-  return *std::min_element(solution_.back().distance.begin(), solution_.back().distance.end());;
+  return *std::min_element(solution_.back().distance.begin(), solution_.back().distance.end());
 }
 
 std::vector<DAGSearch::predecessor_t> DAGSearch::shortestPath() const
@@ -77,18 +77,18 @@ std::vector<DAGSearch::predecessor_t> DAGSearch::shortestPath() const
 
   assert(min_idx >= 0);
 
-  std::vector<predecessor_t> path(solution_.size(), 0);
+  std::vector<predecessor_t> path(solution_.size());
 
-  size_type current_opt_vert_id = min_idx;
+  size_type current_rung = path.size() - 1;
+  size_type current_index = min_idx;
 
-  // trace back to the beginning
-  for (size_type current_rung_id = path.size()-1; current_rung_id > 0; current_rung_id--)
+  for (unsigned i = 0; i < path.size(); ++i)
   {
-    // record the least cost vert's id in current rung
-    path[current_rung_id] = (predecessor_t)current_opt_vert_id;
-
-    // move the iterator forward
-    current_opt_vert_id = predecessor(current_rung_id, current_opt_vert_id);
+    auto count = path.size() - 1 - i;
+    assert(current_rung == count);
+    path[count] = current_index;
+    current_index = predecessor(current_rung, current_index);
+    current_rung -= 1;
   }
 
   return path;

@@ -111,6 +111,19 @@ public:
     return count;
   }
 
+  size_type numEdges() const noexcept
+  {
+    size_type count = 0; // Add the edge num of each rung d
+    for (const auto& rung : rungs_)
+    {
+      for (const auto &v_edges : rung.edges)
+      {
+        count += v_edges.size();
+      }
+    }
+    return count;
+  }
+
   /**
    * @brief indexOf returns a pair describing whether the given ID is in the graph and if so, what
    *        index it has.

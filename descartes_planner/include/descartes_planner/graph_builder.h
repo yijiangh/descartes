@@ -32,6 +32,7 @@ struct ConstrainedSegment
 
 LadderGraph sampleConstrainedPaths(const descartes_core::RobotModel& model, ConstrainedSegment& segment);
 
+// TODO: should be renamed
 // Appends 'next' to the end of 'current' to produce a new graph
 void appendInTime(LadderGraph& current, const LadderGraph& next);
 

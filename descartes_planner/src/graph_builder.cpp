@@ -154,6 +154,8 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
                                                                          ConstrainedSegment& segment)
 {
   // Determine the linear points
+  // TODO: should have a lower bound for discretization
+  // if sampled point num < threshold, discretize using threshold, otherwise use input linear_disc
   auto points = discretizePositions(segment.start, segment.end, segment.linear_disc);
 
   // Compute the number of angle steps
@@ -167,10 +169,9 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
   const auto dt =  traverse_length / segment.linear_vel;
 
   LadderGraph graph(model.getDOF());
+
   // there will be a ladder rung for each point that we must solve
   graph.resize(points.size());
-
-//  ROS_INFO_STREAM("Point has " << segment.orientations.size() << " orientations");
 
   // We will build up our graph one configuration at a time: a configuration is a single orientation and z angle disc
   for (const auto& orientation : segment.orientations)
@@ -186,9 +187,12 @@ descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const d
     }
   }
 
+  // TODO: should invoke fine resolution if any rung has no vertex
+
   return graph;
 }
 
+// TODO:
 void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &next)
 {
   const auto ref_size = current.size();

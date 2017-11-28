@@ -111,6 +111,9 @@ public:
     return count;
   }
 
+  /**
+  * @brief numEdges Counts the total number of edges in the graph
+  */
   size_type numEdges() const noexcept
   {
     size_type count = 0; // Add the edge num of each rung d

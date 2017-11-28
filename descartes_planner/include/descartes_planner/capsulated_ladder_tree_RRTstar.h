@@ -1,0 +1,10 @@
+//
+// Created by yijiangh on 11/28/17.
+//
+
+#ifndef DESCARTES_CAPSULATED_LADDER_TREE_RRTSTAR_H
+#define DESCARTES_CAPSULATED_LADDER_TREE_RRTSTAR_H
+
+#include <capsulated_ladder_tree.h>
+
+#endif //DESCARTES_CAPSULATED_LADDER_TREE_RRTSTAR_H

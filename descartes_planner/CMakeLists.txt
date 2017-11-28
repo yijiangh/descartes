@@ -58,7 +58,7 @@ add_library(descartes_planner
             src/ladder_graph_dag_search.cpp
             src/ladder_graph_dag_search_lazy_collision.cpp
             src/graph_builder.cpp
-            include/descartes_planner/capsulated_ladder_tree.h
+#            include/descartes_planner/capsulated_ladder_tree.h
 )
 
 target_link_libraries(descartes_planner

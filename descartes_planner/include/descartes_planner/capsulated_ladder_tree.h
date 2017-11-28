@@ -5,6 +5,9 @@
 #ifndef DESCARTES_CAPSULATED_LADDER_TREE_H
 #define DESCARTES_CAPSULATED_LADDER_TREE_H
 
+// for Constrained Segment
+#include "graph_builder.h"
+
 #include <moveit/planning_scene/planning_scene.h>
 
 namespace descartes_planner
@@ -13,7 +16,7 @@ namespace descartes_planner
 class CapVert
 {
  public:
-  CapVert(const size_t rung_id,
+  explicit CapVert(const size_t rung_id,
           const std::vector<double>& st_jt, const std::vector<double>& end_jt)
       : start_joint_(st_jt), end_joint_(end_jt), to_parent_cost_(0), ptr_prev_cap_vert_(NULL)
   {
@@ -30,6 +33,8 @@ class CapVert
 
   inline double distance(CapVert& v) const
   {
+    // TODO: this should involve all ik solution comparision
+
     std::vector<double> delta_buffer;
     // just use
     for (size_t i = 0; i < dof_; ++i)
@@ -65,8 +70,11 @@ class CapVert
   }
 
  private:
-  std::vector<double> start_joint_;
-  std::vector<double> end_joint_;
+  // accumulated
+  int dof_;
+
+  std::vector<double> start_joint_data_;
+  std::vector<double> end_joint__data_;
 
   double to_parent_cost_;
   CapVert* ptr_prev_cap_vert_;
@@ -75,8 +83,24 @@ class CapVert
 struct CapRung
 {
   std::vector<CapVert> cap_verts;
+
+  std::vector<Eigen::Eigen::Matrix3d> orientations_;
   planning_scene::PlanningScenePtr planning_scene;
   std::vector<int> conflict_id;
+
+  inline int numOfOrientations() const { return orientations_.size(); }
+
+  inline Eigen::Affine3d makePose(double rand_o, double rand_a) const
+  {
+    // sanity check - 0 <= rand_o, rand_a < 1
+    if(!(0<= rand_o && rand_o < 1 && 0 <= rand_a && rand_a < 1))
+    {
+      ROS_ERROR("[Cap Ladder Tree] sample num should be in [0,1)!!");
+    }
+    assert(0<= rand_o && rand_o < 1 && 0 <= rand_a && rand_a < 1);
+
+    // return pose
+  }
 };
 }
 

@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   pluginlib
   cmake_modules
   rviz_visual_tools
+  eigen_conversions
+  moveit_msgs
 )
 
 find_package(Boost REQUIRED)
@@ -35,6 +37,8 @@ catkin_package(
     moveit_core
     descartes_core
     descartes_trajectory
+    eigen_conversions
+    moveit_msgs
   DEPENDS
     Boost
     EIGEN3

@@ -111,11 +111,10 @@ struct CapRung
 {
   std::vector<CapVert> cap_verts_;
 
+  std::vector<Eigen::Vector3d> path_pts_;
   std::vector<Eigen::Matrix3d> orientations_;
   planning_scene::PlanningScenePtr planning_scene_;
-  std::vector<int> conflict_id_;
-
-  inline int numOfOrientations() const { return orientations_.size(); }
+  std::vector<size_t> conflict_id_;
 
   inline Eigen::Affine3d makePose(double rand_o, double rand_a) const
   {

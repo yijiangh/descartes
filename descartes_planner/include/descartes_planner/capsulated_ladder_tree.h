@@ -17,32 +17,49 @@ class CapVert
 {
  public:
   explicit CapVert(const size_t rung_id,
-          const std::vector<double>& st_jt, const std::vector<double>& end_jt)
-      : start_joint_(st_jt), end_joint_(end_jt), to_parent_cost_(0), ptr_prev_cap_vert_(NULL)
+                   const std::vector<double> &st_jt, const std::vector<double> &end_jt)
+      : start_joint_data_(st_jt), end_joint_data_(end_jt), to_parent_cost_(0), ptr_prev_cap_vert_(NULL)
   {
   }
 
   ~CapVert()
   {
-    if(NULL != ptr_prev_cap_vert_)
+    if (NULL != ptr_prev_cap_vert_)
     {
       delete ptr_prev_cap_vert_;
       ptr_prev_cap_vert_ = NULL;
     }
   }
 
-  inline double distance(CapVert& v) const
+  inline double distance(CapVert &v) const
   {
-    // TODO: this should involve all ik solution comparision
+    // sanity check
+    assert(v.dof_ = this->dof_);
 
-    std::vector<double> delta_buffer;
-    // just use
-    for (size_t i = 0; i < dof_; ++i)
+    double cost = std::numeric_limits<double>::max();
+    const auto n_prev = v.end_joint_data_.size() / v.dof_;
+    const auto n_this = this->end_joint_data_.size() / this->dof_;
+
+    for(size_t i=0; i < n_this; i++)
     {
-      delta_buffer[i] = std::abs(this->start_joint[i] - v.end_joint[i]);
+      for (size_t j = 0; j < n_prev; j++)
+      {
+        std::vector<double> delta_buffer;
+        // just use
+        for (size_t k = 0; k < dof_; k++)
+        {
+          delta_buffer[i] = std::abs(this->start_joint_data_[i] - v.end_joint_data_[i]);
+        }
+
+        double tmp_cost = std::accumulate(delta_buffer.cbegin(), delta_buffer.cend(), 0.0);
+        if(tmp_cost < cost)
+        {
+          cost = tmp_cost;
+        }
+      }
     }
 
-    double cost = std::accumulate(delta_buffer_.cbegin(), delta_buffer_.cend(), 0.0);
+    return cost;
   }
 
   inline double getToParentCost() { return this->to_parent_cost_; }
@@ -70,11 +87,11 @@ class CapVert
   }
 
  private:
-  // accumulated
   int dof_;
 
+  // joint values stored in one contiguous array
   std::vector<double> start_joint_data_;
-  std::vector<double> end_joint__data_;
+  std::vector<double> end_joint_data_;
 
   double to_parent_cost_;
   CapVert* ptr_prev_cap_vert_;
@@ -84,9 +101,9 @@ struct CapRung
 {
   std::vector<CapVert> cap_verts;
 
-  std::vector<Eigen::Eigen::Matrix3d> orientations_;
-  planning_scene::PlanningScenePtr planning_scene;
-  std::vector<int> conflict_id;
+  std::vector<Eigen::Matrix3d> orientations_;
+  planning_scene::PlanningScenePtr planning_scene_;
+  std::vector<int> conflict_id_;
 
   inline int numOfOrientations() const { return orientations_.size(); }
 

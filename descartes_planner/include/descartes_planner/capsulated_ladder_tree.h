@@ -31,13 +31,18 @@ class CapVert
     }
   }
 
-  inline double distance(CapVert &v) const
+  inline double distance(CapVert* v) const
   {
     // sanity check
-    assert(v.dof_ = this->dof_);
+    if(NULL == v)
+    {
+      return 0.0;
+    }
+
+    assert(v->dof_ = this->dof_);
 
     double cost = std::numeric_limits<double>::max();
-    const auto n_prev = v.end_joint_data_.size() / v.dof_;
+    const auto n_prev = v->end_joint_data_.size() / v->dof_;
     const auto n_this = this->end_joint_data_.size() / this->dof_;
 
     for(size_t i=0; i < n_this; i++)
@@ -48,7 +53,7 @@ class CapVert
         // just use
         for (size_t k = 0; k < dof_; k++)
         {
-          delta_buffer[i] = std::abs(this->start_joint_data_[i] - v.end_joint_data_[i]);
+          delta_buffer[i] = std::abs(this->start_joint_data_[i] - v->end_joint_data_[i]);
         }
 
         double tmp_cost = std::accumulate(delta_buffer.cbegin(), delta_buffer.cend(), 0.0);
@@ -66,8 +71,13 @@ class CapVert
 
   inline const CapVert* getParentVertPtr() const { return this->ptr_prev_cap_vert_; }
 
-  inline void setParentVertPtr(CapVert* ptr_v) { this->ptr_prev_cap_vert_ = ptr_v; }
+  inline void setParentVertPtr(CapVert* ptr_v)
+  {
+    this->ptr_prev_cap_vert_ = ptr_v;
+    this->to_parent_cost_ = this->distance(ptr_v);
+  }
 
+  // accumulated cost (the function g)
   inline double getCost()
   {
     // trace back tree to compute cost
@@ -99,7 +109,7 @@ class CapVert
 
 struct CapRung
 {
-  std::vector<CapVert> cap_verts;
+  std::vector<CapVert> cap_verts_;
 
   std::vector<Eigen::Matrix3d> orientations_;
   planning_scene::PlanningScenePtr planning_scene_;

@@ -16,7 +16,7 @@
 // unit process sampling timeout in initial solution searching
 const static double UNIT_PROCESS_TIMEOUT = 30.0;
 // total timeout for RRTstar
-const static double RRTSTAR_TIMEOUT = 120.0;
+const static double RRTSTAR_TIMEOUT = 30.0;
 
 namespace // anon namespace to hide utility functions
 {
@@ -60,28 +60,49 @@ Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d&
   return m * z_rot;
 }
 
+static int randomSampleInt(int lower, int upper)
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  if(upper > lower)
+  {
+    std::uniform_int_distribution<int> int_distr(0, upper);
+    return int_distr(gen);
+  }
+  else
+  {
+    return lower;
+  }
+}
+
+static double randomSampleDouble(double lower, double upper)
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  if(upper > lower)
+  {
+    std::uniform_real_distribution<double> double_distr(lower, upper);
+    return double_distr(gen);
+  }
+  else
+  {
+    return lower;
+  }
+}
+
 std::vector<Eigen::Affine3d> generateSample(const descartes_planner::CapRung& cap_rung,
                                             descartes_planner::CapVert& cap_vert)
 {
   // sample int for orientation
-  std::random_device rd;  //Will be used to obtain a seed for the random number engine
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+  int o_sample = randomSampleInt(0, cap_rung.orientations_.size()-1);
 
-  int o_sample;
-  if(cap_rung.orientations_.size() > 1)
-  {
-    std::uniform_int_distribution<int> orient_distr(0, cap_rung.orientations_.size()-1);
-    o_sample = orient_distr(gen);
-  }
-  else
-  {
-    o_sample = 0;
-  }
   Eigen::Matrix3d orientation_sample = cap_rung.orientations_[o_sample];
 
   // sample [0,1] for axis, z_axis_angle = b_rand * 2 * Pi
-  std::uniform_real_distribution<double> x_axis_distr(0.0, 1.0);
-  double x_axis_sample = x_axis_distr(gen) * 2 * M_PI;
+
+  double x_axis_sample = randomSampleDouble(0.0, 1.0) * 2 * M_PI;
 
   std::vector<Eigen::Affine3d> poses;
   poses.reserve(cap_rung.path_pts_.size());
@@ -309,19 +330,77 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
 //
     }
 
-    ROS_INFO_STREAM("[CLTRRT]ik solution found for process #" << rung_id);
+    ROS_INFO_STREAM("[CLTRRT] ik solutions found for process #" << rung_id);
     rung_id++;
   } // loop over cap_rungs
 
-  // return last vert's cost
-  double last_cost = cap_rungs_.back().ptr_cap_verts_.back()->getCost();
-  return last_cost;
+  double initial_sol_cost = cap_rungs_.back().ptr_cap_verts_.back()->getCost();
+  ROS_INFO_STREAM("[CLTRRT] initial sol found! cost: " << initial_sol_cost);
+  ROS_INFO_STREAM("[CLTRRT] RRT* improvement starts.");
 
   // RRT* improve on the tree
+  const auto rrt_start_time = ros::Time::now();
 
+  while((ros::Time::now() - rrt_start_time).toSec() < RRTSTAR_TIMEOUT)
+  {
+    // sample cap_rung
+    int rung_id_sample = randomSampleInt(0, cap_rungs_.size()-1);
+    auto& cap_rung_sample = cap_rungs_[rung_id_sample];
+
+    // sample cap_vert
+    CapVert* ptr_new_vert = new CapVert(model.getDOF());
+    auto poses = generateSample(cap_rung_sample, *ptr_new_vert);
+
+    if(checkFeasibility(model, poses, cap_rung_sample, *ptr_new_vert))
+    {
+      // find nearest node in tree
+      double c_min = std::numeric_limits<double>::max();
+      CapVert* ptr_nearest_vert = NULL;
+
+      if(rung_id_sample > 0)
+      {
+        for(auto& ptr_near_vert : this->cap_rungs_[rung_id_sample-1].ptr_cap_verts_)
+        {
+          double new_near_cost = ptr_near_vert->getCost() + ptr_new_vert->distance(ptr_near_vert);
+          if(c_min > new_near_cost)
+          {
+            ptr_nearest_vert = ptr_near_vert;
+            c_min = new_near_cost;
+          }
+        }
+      }
+
+      // add new vert into CL tree (rung_id, parent_vert)
+      ptr_new_vert->rung_id_ = rung_id_sample;
+      ptr_new_vert->setParentVertPtr(ptr_nearest_vert);
+      cap_rung_sample.ptr_cap_verts_.push_back(ptr_new_vert);
+
+      // update vert next (repair tree)
+      if(rung_id_sample < this->cap_rungs_.size()-1)
+      {
+        double new_vert_cost = ptr_new_vert->getCost();
+        for(auto& ptr_next_vert : this->cap_rungs_[rung_id_sample+1].ptr_cap_verts_)
+        {
+          double old_next_cost = ptr_next_vert->getCost();
+          double new_next_cost = new_vert_cost + ptr_next_vert->distance(ptr_new_vert);
+          if(old_next_cost > new_next_cost)
+          {
+            ptr_next_vert->setParentVertPtr(ptr_new_vert);
+          }
+        }
+      }
+    } // end if capvert feasible
+  }
+
+  CapVert* ptr_last_cap_vert = *std::min_element(this->cap_rungs_.back().ptr_cap_verts_.begin(),
+                                                 this->cap_rungs_.back().ptr_cap_verts_.end(), comparePtrCapVert);
+  double rrt_cost = ptr_last_cap_vert->getCost();
+
+  ROS_INFO_STREAM("[CLTRRT] RRT* sol cost " << rrt_cost
+                                            << " after " << RRTSTAR_TIMEOUT << " secs.");
+  return rrt_cost;
 }
 
-// TODO sould output graph_indices
 void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& model,
                                                   std::vector<descartes_core::TrajectoryPtPtr>& sol,
                                                   std::vector<std::size_t>& graph_indices)
@@ -364,7 +443,7 @@ void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& mo
     sol.insert(sol.begin(), unit_sol.begin(), unit_sol.end());
     graph_indices.insert(graph_indices.begin(), unit_ladder_graph.size());
 
-    ROS_INFO_STREAM("[CLTRRT] unit process (DAG on Ladder Graph) #" << ptr_last_cap_vert->rung_id_ << " solved."
+    ROS_INFO_STREAM("[CLTRRT] unit process (DAG on Ladder Graph) #" << ptr_last_cap_vert->rung_id_ << " solved"
                                                                     << ", graph size: " << graph_indices.front());
 
     ptr_last_cap_vert = ptr_last_cap_vert->getParentVertPtr();

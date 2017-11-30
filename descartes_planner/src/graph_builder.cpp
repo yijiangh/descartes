@@ -44,10 +44,44 @@ Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d&
   return m * z_rot;
 }
 
-descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotModel& model,
-                                                  const std::vector<Eigen::Vector3d>& ps,
-                                                  const double dt, const Eigen::Matrix3d& orientation,
-                                                  const double z_axis_angle)
+void concatenate(descartes_planner::LadderGraph& dest, const descartes_planner::LadderGraph& src)
+{
+  assert(dest.size() > 0);
+  assert(src.size() > 0);
+  assert(dest.size() == src.size()); // same number of rungs
+  // TODO
+  // Combines the joints and edges from one graph, src, into another, dest
+  // The joints copy straight over, but the index of the points needs to be transformed
+  for (std::size_t i = 0; i < src.size(); ++i)
+  {
+    // Copy the joints
+    auto& dest_joints = dest.getRung(i).data;
+    const auto& src_joints = src.getRung(i).data;
+    dest_joints.insert(dest_joints.end(), src_joints.begin(), src_joints.end());
+
+    if (i != src.size() - 1)
+    {
+      // Copy the edges and transform them
+      const auto next_rung_size = dest.rungSize(i + 1);
+      auto& dest_edges = dest.getEdges(i);
+      const auto& src_edges = src.getEdges(i);
+      for (const auto& edge : src_edges)
+      {
+        auto edge_copy = edge;
+        for (auto& e : edge_copy)
+          e.idx += next_rung_size;
+        dest_edges.push_back(edge_copy);
+      }
+    }
+  }
+}
+
+} // end anon utility function ns
+
+descartes_planner::LadderGraph descartes_planner::sampleSingleConfig(const descartes_core::RobotModel& model,
+                                                                     const std::vector<Eigen::Vector3d>& ps,
+                                                                     const double dt, const Eigen::Matrix3d& orientation,
+                                                                     const double z_axis_angle)
 {
   descartes_planner::LadderGraph graph(model.getDOF());
   graph.resize(ps.size());
@@ -115,40 +149,6 @@ descartes_planner::LadderGraph sampleSingleConfig(const descartes_core::RobotMod
 
   return graph;
 }
-
-void concatenate(descartes_planner::LadderGraph& dest, const descartes_planner::LadderGraph& src)
-{
-  assert(dest.size() > 0);
-  assert(src.size() > 0);
-  assert(dest.size() == src.size()); // same number of rungs
-  // TODO
-  // Combines the joints and edges from one graph, src, into another, dest
-  // The joints copy straight over, but the index of the points needs to be transformed
-  for (std::size_t i = 0; i < src.size(); ++i)
-  {
-    // Copy the joints
-    auto& dest_joints = dest.getRung(i).data;
-    const auto& src_joints = src.getRung(i).data;
-    dest_joints.insert(dest_joints.end(), src_joints.begin(), src_joints.end());
-
-    if (i != src.size() - 1)
-    {
-      // Copy the edges and transform them
-      const auto next_rung_size = dest.rungSize(i + 1);
-      auto& dest_edges = dest.getEdges(i);
-      const auto& src_edges = src.getEdges(i);
-      for (const auto& edge : src_edges)
-      {
-        auto edge_copy = edge;
-        for (auto& e : edge_copy)
-          e.idx += next_rung_size;
-        dest_edges.push_back(edge_copy);
-      }
-    }
-  }
-}
-
-} // end anon utility function ns
 
 descartes_planner::LadderGraph descartes_planner::sampleConstrainedPaths(const descartes_core::RobotModel& model,
                                                                          ConstrainedSegment& segment)

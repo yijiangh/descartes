@@ -23,12 +23,16 @@ class CapsulatedLadderTreeRRTstar
       const std::vector<ConstrainedSegment>& segs,
       const std::vector<planning_scene::PlanningScenePtr>& planning_scenes);
 
+  ~CapsulatedLadderTreeRRTstar();
+
   // use RRT* on a ladder tree to get optimal capsulated solution
   // return the cost of the solution, if no sol found, return numerical max
   double solve(descartes_core::RobotModel& model);
 
   // construct ladder graph for each capsule and apply DAG search to get full trajectory solution
-  void extractSolution(std::vector<descartes_core::TrajectoryPtPtr>& sol);
+  void extractSolution(descartes_core::RobotModel& model,
+                       std::vector<descartes_core::TrajectoryPtPtr>& sol,
+                       std::vector<std::size_t>& graph_indices);
 
  private:
   std::vector<CapRung> cap_rungs_;

@@ -13,8 +13,6 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/Pose.h>
 
-#include <random>
-
 // unit process sampling timeout in initial solution searching
 const static double UNIT_PROCESS_TIMEOUT = 30.0;
 // total timeout for RRTstar
@@ -62,7 +60,8 @@ Eigen::Affine3d makePose(const Eigen::Vector3d& position, const Eigen::Matrix3d&
   return m * z_rot;
 }
 
-std::vector<Eigen::Affine3d> generateSample(size_t rung_id, const descartes_planner::CapRung& cap_rung)
+std::vector<Eigen::Affine3d> generateSample(const descartes_planner::CapRung& cap_rung,
+                                            descartes_planner::CapVert& cap_vert)
 {
   // sample int for orientation
   std::random_device rd;  //Will be used to obtain a seed for the random number engine
@@ -80,12 +79,9 @@ std::vector<Eigen::Affine3d> generateSample(size_t rung_id, const descartes_plan
   }
   Eigen::Matrix3d orientation_sample = cap_rung.orientations_[o_sample];
 
-//  ROS_INFO_STREAM("[CAPRRT] orient sample " << o_sample << "/" << cap_rung.orientations_.size());
-
   // sample [0,1] for axis, z_axis_angle = b_rand * 2 * Pi
   std::uniform_real_distribution<double> x_axis_distr(0.0, 1.0);
   double x_axis_sample = x_axis_distr(gen) * 2 * M_PI;
-//  ROS_INFO_STREAM("[CAPRRT] x_axis sample " << x_axis_sample);
 
   std::vector<Eigen::Affine3d> poses;
   poses.reserve(cap_rung.path_pts_.size());
@@ -94,6 +90,8 @@ std::vector<Eigen::Affine3d> generateSample(size_t rung_id, const descartes_plan
     poses.push_back(makePose(pt, orientation_sample, x_axis_sample));
   }
 
+  cap_vert.z_axis_angle_ = x_axis_sample;
+  cap_vert.orientation_ = orientation_sample;
   return poses;
 }
 
@@ -102,49 +100,102 @@ std::vector<Eigen::Affine3d> generateSample(size_t rung_id, const descartes_plan
 bool checkFeasibility(
     descartes_core::RobotModel& model,
     const std::vector<Eigen::Affine3d>& poses, descartes_planner::CapRung& cap_rung,
-    std::vector<double>& st_jt, std::vector<double>& end_jt)
+    descartes_planner::CapVert& cap_vert)
 {
-  model.setPlanningScene(cap_rung.planning_scene_);
+  // sanity check
+  assert(poses.size() == cap_rung.path_pts_.size());
 
-  // TODO: add conflict index, first check conflict indices
-  size_t pose_id = 0;
-  for(auto& pose : poses)
+  model.setPlanningScene(cap_rung.planning_scene_);
+  std::vector<double> st_jt;
+  std::vector<double> end_jt;
+
+  // first check conflict indices
+  std::vector<size_t> full_ids(poses.size());
+  std::iota(full_ids.begin(), full_ids.end(), 0); // fill 0 ~ n-1
+  std::set<size_t> full_ids_set(full_ids.begin(), full_ids.end());
+
+  std::set<size_t> last_check_ids;
+  std::set_difference(full_ids_set.begin(), full_ids_set.end(),
+                      cap_rung.conflict_ids_.begin(), cap_rung.conflict_ids_.end(),
+                      std::inserter(last_check_ids, last_check_ids.end()));
+
+  std::vector<std::vector<double>> joint_poses;
+  for(size_t c_id = 0; c_id < poses.size(); c_id++)
   {
-    std::vector<std::vector<double>> joint_poses;
-    model.getAllIK(pose, joint_poses);
+    joint_poses.clear();
+    model.getAllIK(poses[c_id], joint_poses);
 
     if(joint_poses.empty())
     {
-      cap_rung.conflict_id_.push_back(pose_id);
-      st_jt.clear();
-      end_jt.clear();
       return false;
     }
     else
     {
-      if(0 == pose_id)
+      if(0 == c_id)
       {
         // turn packed joint solution in a contiguous array
         for (const auto& sol : joint_poses)
         {
           st_jt.insert(st_jt.end(), sol.cbegin(), sol.cend());
         }
+        cap_vert.start_joint_data_ = st_jt;
       }
-      if(poses.size()-1 == pose_id)
+      if(poses.size()-1 == c_id)
       {
         // turn packed joint solution in a contiguous array
         for (const auto& sol : joint_poses)
         {
           end_jt.insert(end_jt.end(), sol.cbegin(), sol.cend());
         }
+        cap_vert.end_joint_data_ = end_jt;
       }
     }
-
-    pose_id++;
-  }
+  }// end loop over poses
 
   // all poses are valid (have feasible ik solutions)!
   return true;
+}
+
+bool domainDiscreteEnumerationCheck(
+    descartes_core::RobotModel& model,
+    descartes_planner::CapRung& cap_rung,
+    descartes_planner::CapVert& cap_vert)
+{
+  // direct enumeration of domain
+  const std::vector<Eigen::Vector3d> pts = cap_rung.path_pts_;
+  std::vector<Eigen::Affine3d> poses;
+  poses.reserve(cap_rung.path_pts_.size());
+
+  const auto n_angle_disc = std::lround( 2 * M_PI / cap_rung.z_axis_disc_);
+  const auto angle_step = 2 * M_PI / n_angle_disc;
+
+  for (const auto& orientation : cap_rung.orientations_)
+  {
+    for (long i = 0; i < n_angle_disc; ++i)
+    {
+      const auto angle = angle_step * i;
+      poses.clear();
+
+      for(const auto& pt : pts)
+      {
+        poses.push_back(makePose(pt, orientation, angle));
+      }
+
+      if(checkFeasibility(model, poses, cap_rung, cap_vert))
+      {
+        cap_vert.orientation_ = orientation;
+        cap_vert.z_axis_angle_ = angle;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+static bool comparePtrCapVert(const descartes_planner::CapVert* lhs, const descartes_planner::CapVert* rhs)
+{
+  return (lhs->getCost() < rhs->getCost());
 }
 } //end util namespace
 
@@ -163,18 +214,44 @@ CapsulatedLadderTreeRRTstar::CapsulatedLadderTreeRRTstar(
   {
     CapRung cap_rung;
 
+    // end effector path pts
     auto points = discretizePositions(segs[i].start, segs[i].end, segs[i].linear_disc);
     cap_rung.path_pts_ = points;
 
+    // feasible orientations
     cap_rung.orientations_.reserve(segs[i].orientations.size());
     for (auto& orient : segs[i].orientations)
     {
       cap_rung.orientations_.push_back(orient);
     }
 
+    // planning scene
     cap_rung.planning_scene_ = planning_scenes[i];
 
+    // conflict indices is empty initially
+
+    // input z axis disc
+    cap_rung.z_axis_disc_ = segs[i].z_axis_disc;
+
+    // linear speed
+    cap_rung.linear_vel_ = segs[i].linear_vel;
+
     cap_rungs_.push_back(cap_rung);
+  }
+}
+
+CapsulatedLadderTreeRRTstar::~CapsulatedLadderTreeRRTstar()
+{
+  for(auto& cap_rung : cap_rungs_)
+  {
+    for(auto& ptr_vert : cap_rung.ptr_cap_verts_)
+    {
+      if(NULL != ptr_vert)
+      {
+        delete ptr_vert;
+        ptr_vert = NULL;
+      }
+    }
   }
 }
 
@@ -188,19 +265,18 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
   {
     const auto unit_search_start = ros::Time::now();
     auto unit_search_update = unit_search_start;
+    CapVert* ptr_cap_vert = new CapVert(model.getDOF());
 
     do
     {
-      std::vector<Eigen::Affine3d> poses = generateSample(rung_id, cap_rung);
-      std::vector<double> start_jt;
-      std::vector<double> end_jt;
+      std::vector<Eigen::Affine3d> poses = generateSample(cap_rung, *ptr_cap_vert);
 
-      if(checkFeasibility(model, poses, cap_rung, start_jt, end_jt))
+      if(checkFeasibility(model, poses, cap_rung, *ptr_cap_vert))
       {
-        // initial solution found, make cap_vert
-        CapVert cap_vert(rung_id, start_jt, end_jt);
-        cap_vert.setParentVertPtr(ptr_prev_vert);
-        cap_rung.cap_verts_.push_back(cap_vert);
+        ptr_cap_vert->setParentVertPtr(ptr_prev_vert);
+        ptr_cap_vert->rung_id_ = rung_id;
+        cap_rung.ptr_cap_verts_.push_back(ptr_cap_vert);
+        ptr_prev_vert = ptr_cap_vert;
         break;
       }
 
@@ -208,36 +284,91 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
     }
     while((unit_search_update - unit_search_start).toSec() < UNIT_PROCESS_TIMEOUT);
 
-    if(0 == cap_rung.cap_verts_.size())
+    if(cap_rung.ptr_cap_verts_.empty())
     {
       // random sampling fails to find a solution
-      //if discrete_enumeration fails
-
-      // else
       ROS_ERROR_STREAM("[CapRRTstar] process #" << rung_id
                                                 << " fails to find intial feasible sol within timeout "
-                                                << UNIT_PROCESS_TIMEOUT);
-
+                                                << UNIT_PROCESS_TIMEOUT << "secs");
       return std::numeric_limits<double>::max();
+//      if(domainDiscreteEnumerationCheck(model, cap_rung, cap_vert))
+//      {
+//        // enumeration solution found!
+//        cap_vert.setParentVertPtr(ptr_prev_vert);
+//        cap_vert.rung_id_ = rung_id;
+//        cap_rung.cap_verts_.push_back(cap_vert);
+//      }
+//      else
+//      {
+//        ROS_ERROR_STREAM("[CapRRTstar] process #" << rung_id
+//                                                 << " fails to find initial feasible sol with input z_axis disc num: "
+//                                                 << std::lround( 2 * M_PI / cap_rung.z_axis_disc_)
+//                                                  << ", orientations num: " << cap_rung.orientations_.size()
+//                                                  << ", path pts size" << cap_rung.path_pts_.size());
+//        return std::numeric_limits<double>::max();
+//
     }
 
     ROS_INFO_STREAM("[CLTRRT]ik solution found for process #" << rung_id);
     rung_id++;
-  } // for cap_rungs
+  } // loop over cap_rungs
 
   // return last vert's cost
-//  double last_cost = cap_rungs_.back().cap_verts_.back().getCost();
-  return 0.0;
+  double last_cost = cap_rungs_.back().ptr_cap_verts_.back()->getCost();
+  return last_cost;
 
   // RRT* improve on the tree
 
 }
 
-void CapsulatedLadderTreeRRTstar::extractSolution(std::vector<descartes_core::TrajectoryPtPtr>& sol)
+// TODO sould output graph_indices
+void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& model,
+                                                  std::vector<descartes_core::TrajectoryPtPtr>& sol,
+                                                  std::vector<std::size_t>& graph_indices)
 {
-  // construct unit ladder graph for each cap rung
+  // find min cap_vert on last cap_rung
+  CapVert* ptr_last_cap_vert = *std::min_element(this->cap_rungs_.back().ptr_cap_verts_.begin(),
+                                                 this->cap_rungs_.back().ptr_cap_verts_.end(), comparePtrCapVert);
 
-  // carry out DAG search on each ladder graph
+  while(ptr_last_cap_vert != NULL)
+  {
+    // construct unit ladder graph for each cap rungpath_pts_
+    const auto cap_rung = cap_rungs_[ptr_last_cap_vert->rung_id_];
+    double traverse_length = (cap_rung.path_pts_.front() - cap_rung.path_pts_.back()).norm();
+    const auto dt = traverse_length / cap_rung.linear_vel_;
+
+    model.setPlanningScene(cap_rung.planning_scene_);
+    auto unit_ladder_graph = sampleSingleConfig(model,
+                                                cap_rungs_[ptr_last_cap_vert->rung_id_].path_pts_,
+                                                dt,
+                                                ptr_last_cap_vert->orientation_,
+                                                ptr_last_cap_vert->z_axis_angle_);
+
+    // carry out DAG search on each ladder graph
+    descartes_planner::DAGSearch search(unit_ladder_graph);
+    double cost = search.run();
+    auto path_idxs = search.shortestPath();
+
+    std::vector<descartes_core::TrajectoryPtPtr> unit_sol;
+    for (size_t j = 0; j < path_idxs.size(); ++j)
+    {
+      const auto idx = path_idxs[j];
+      const auto* data = unit_ladder_graph.vertex(j, idx);
+      const auto& tm = unit_ladder_graph.getRung(j).timing;
+      auto pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::JointTrajectoryPt(
+          std::vector<double>(data, data + 6), tm));
+      unit_sol.push_back(pt);
+    }
+
+    // insert at sol's front
+    sol.insert(sol.begin(), unit_sol.begin(), unit_sol.end());
+    graph_indices.insert(graph_indices.begin(), unit_ladder_graph.size());
+
+    ROS_INFO_STREAM("[CLTRRT] unit process (DAG on Ladder Graph) #" << ptr_last_cap_vert->rung_id_ << " solved."
+                                                                    << ", graph size: " << graph_indices.front());
+
+    ptr_last_cap_vert = ptr_last_cap_vert->getParentVertPtr();
+  }
 }
 
 } //end namespace descartes planner

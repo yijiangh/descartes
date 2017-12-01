@@ -16,7 +16,7 @@
 // unit process sampling timeout in initial solution searching
 const static double UNIT_PROCESS_TIMEOUT = 30.0;
 // total timeout for RRTstar
-const static double RRTSTAR_TIMEOUT = 30.0;
+const static double RRTSTAR_TIMEOUT = 60.0;
 
 namespace // anon namespace to hide utility functions
 {
@@ -405,10 +405,13 @@ void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& mo
                                                   std::vector<descartes_core::TrajectoryPtPtr>& sol,
                                                   std::vector<std::size_t>& graph_indices)
 {
+  const auto graph_build_start = ros::Time::now();
+
   // find min cap_vert on last cap_rung
   CapVert* ptr_last_cap_vert = *std::min_element(this->cap_rungs_.back().ptr_cap_verts_.begin(),
                                                  this->cap_rungs_.back().ptr_cap_verts_.end(), comparePtrCapVert);
 
+  std::vector<descartes_planner::LadderGraph> graphs;
   while(ptr_last_cap_vert != NULL)
   {
     // construct unit ladder graph for each cap rungpath_pts_
@@ -423,31 +426,37 @@ void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& mo
                                                 ptr_last_cap_vert->orientation_,
                                                 ptr_last_cap_vert->z_axis_angle_);
 
-    // carry out DAG search on each ladder graph
-    descartes_planner::DAGSearch search(unit_ladder_graph);
-    double cost = search.run();
-    auto path_idxs = search.shortestPath();
-
-    std::vector<descartes_core::TrajectoryPtPtr> unit_sol;
-    for (size_t j = 0; j < path_idxs.size(); ++j)
-    {
-      const auto idx = path_idxs[j];
-      const auto* data = unit_ladder_graph.vertex(j, idx);
-      const auto& tm = unit_ladder_graph.getRung(j).timing;
-      auto pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::JointTrajectoryPt(
-          std::vector<double>(data, data + 6), tm));
-      unit_sol.push_back(pt);
-    }
-
-    // insert at sol's front
-    sol.insert(sol.begin(), unit_sol.begin(), unit_sol.end());
+    graphs.insert(graphs.begin(), unit_ladder_graph);
     graph_indices.insert(graph_indices.begin(), unit_ladder_graph.size());
-
-    ROS_INFO_STREAM("[CLTRRT] unit process (DAG on Ladder Graph) #" << ptr_last_cap_vert->rung_id_ << " solved"
-                                                                    << ", graph size: " << graph_indices.front());
-
     ptr_last_cap_vert = ptr_last_cap_vert->getParentVertPtr();
   }
+
+  // unify unit ladder graphs into one
+  descartes_planner::LadderGraph unified_graph(model.getDOF());
+  for(auto& graph : graphs)
+  {
+    descartes_planner::appendInTime(unified_graph, graph);
+  }
+
+  // carry out DAG search on each ladder graph
+  descartes_planner::DAGSearch search(unified_graph);
+  double cost = search.run();
+  auto path_idxs = search.shortestPath();
+
+  sol.clear();
+  for (size_t j = 0; j < path_idxs.size(); ++j)
+  {
+    const auto idx = path_idxs[j];
+    const auto* data = unified_graph.vertex(j, idx);
+    const auto& tm = unified_graph.getRung(j).timing;
+    auto pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::JointTrajectoryPt(
+        std::vector<double>(data, data + 6), tm));
+    sol.push_back(pt);
+  }
+
+  auto graph_build_end = ros::Time::now();
+  ROS_INFO_STREAM("[CLTRRT] Graph construction and searching took: "
+                      << (graph_build_end - graph_build_start).toSec() << " seconds");
 }
 
 } //end namespace descartes planner

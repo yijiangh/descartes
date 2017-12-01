@@ -216,7 +216,7 @@ void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &ne
     const auto n_start = a_rung.data.size() / dof;
     const auto n_end = b_rung.data.size() / dof;
 
-    descartes_planner::DefaultEdgesWithoutTime builder (n_start, n_end, dof);
+    descartes_planner::DefaultEdgesWithoutTime builder(n_start, n_end, dof);
 
     for (size_t k = 0; k < n_start; k++) // from rung
     {
@@ -232,6 +232,12 @@ void descartes_planner::appendInTime(LadderGraph &current, const LadderGraph &ne
     }
 
     std::vector<descartes_planner::LadderGraph::EdgeList> edges = builder.result();
+
+    if (!builder.hasEdges())
+    {
+      ROS_ERROR("[Descartes graph builder] No edges!!!");
+    }
+
     current.assignEdges(ref_size - 1, std::move(edges));
   }
 }

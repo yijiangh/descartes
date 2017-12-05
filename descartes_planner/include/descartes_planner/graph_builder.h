@@ -30,8 +30,14 @@ struct ConstrainedSegment
   int retract_end_pt_num;
 };
 
+LadderGraph sampleSingleConfig(const descartes_core::RobotModel& model,
+                               const std::vector<Eigen::Vector3d>& ps,
+                               const double dt, const Eigen::Matrix3d& orientation,
+                               const double z_axis_angle);
+
 LadderGraph sampleConstrainedPaths(const descartes_core::RobotModel& model, ConstrainedSegment& segment);
 
+// TODO: should be renamed
 // Appends 'next' to the end of 'current' to produce a new graph
 void appendInTime(LadderGraph& current, const LadderGraph& next);
 

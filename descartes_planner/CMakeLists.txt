@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   pluginlib
   cmake_modules
   rviz_visual_tools
+  eigen_conversions
+  moveit_msgs
 )
 
 find_package(Boost REQUIRED)
@@ -35,6 +37,8 @@ catkin_package(
     moveit_core
     descartes_core
     descartes_trajectory
+    eigen_conversions
+    moveit_msgs
   DEPENDS
     Boost
     EIGEN3
@@ -58,6 +62,7 @@ add_library(descartes_planner
             src/ladder_graph_dag_search.cpp
             src/ladder_graph_dag_search_lazy_collision.cpp
             src/graph_builder.cpp
+            src/capsulated_ladder_tree_RRTstar.cpp
 )
 
 target_link_libraries(descartes_planner

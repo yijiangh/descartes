@@ -38,29 +38,33 @@ public:
   std::vector<predecessor_t> shortestPath() const;
 
 private:
-  const LadderGraph& graph_;
 
   struct SolutionRung
   {
+    // accumulated cost (from rung 0) to vertices in current rung
     std::vector<double> distance;
+
+    // min cost out edge from last rung for vertices in current rung
+    // record the optimal vertex's id in last rung
     std::vector<predecessor_t> predecessor;
   };
 
-  inline double& distance(size_type rung, size_type index) noexcept
+  inline double& distance(size_type rung_index, size_type vert_index) noexcept
   {
-    return solution_[rung].distance[index];
+    return solution_[rung_index].distance[vert_index];
   }
 
-  inline predecessor_t& predecessor(size_type rung, size_type index) noexcept
+  inline predecessor_t& predecessor(size_type rung_index, size_type vert_index) noexcept
   {
-    return solution_[rung].predecessor[index];
+    return solution_[rung_index].predecessor[vert_index];
   }
 
-  inline const predecessor_t& predecessor(size_type rung, size_type index) const noexcept
+  inline const predecessor_t& predecessor(size_type rung_index, size_type vert_index) const noexcept
   {
-    return solution_[rung].predecessor[index];
+    return solution_[rung_index].predecessor[vert_index];
   }
 
+  const LadderGraph& graph_;
   std::vector<SolutionRung> solution_;
 };
 } // descartes_planner

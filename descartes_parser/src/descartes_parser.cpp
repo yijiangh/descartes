@@ -13,7 +13,8 @@
 namespace descartes_parser
 {
 
-descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::LadderGraph& graph)
+descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::LadderGraph& graph,
+                                                    std::vector<int> graph_indices)
 {
   descartes_msgs::LadderGraph graph_msg;
   graph_msg.rungs.reserve(graph.size());
@@ -52,6 +53,15 @@ descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::Lad
 
     i++;
   } while(i < graph.size());
+
+  if(!graph_indices.empty())
+  {
+    graph_msg.graph_indices = graph_indices;
+  }
+  else
+  {
+    graph_msg.graph_indices.push_back(graph.size());
+  }
 
   return graph_msg;
 }

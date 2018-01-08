@@ -67,7 +67,7 @@ static int randomSampleInt(int lower, int upper)
 
   if(upper > lower)
   {
-    std::uniform_int_distribution<int> int_distr(0, upper);
+    std::uniform_int_distribution<int> int_distr(lower, upper);
     return int_distr(gen);
   }
   else
@@ -403,38 +403,53 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
 
 void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& model,
                                                   std::vector<descartes_core::TrajectoryPtPtr>& sol,
-                                                  std::vector<std::size_t>& graph_indices)
+                                                  std::vector<descartes_planner::LadderGraph>& graphs,
+                                                  std::vector<int>& graph_indices,
+                                                  const bool use_saved_graph)
 {
   const auto graph_build_start = ros::Time::now();
 
-  // find min cap_vert on last cap_rung
-  CapVert* ptr_last_cap_vert = *std::min_element(this->cap_rungs_.back().ptr_cap_verts_.begin(),
-                                                 this->cap_rungs_.back().ptr_cap_verts_.end(), comparePtrCapVert);
-
-  std::vector<descartes_planner::LadderGraph> graphs;
-  while(ptr_last_cap_vert != NULL)
+  if(!use_saved_graph)
   {
-    // construct unit ladder graph for each cap rungpath_pts_
-    const auto cap_rung = cap_rungs_[ptr_last_cap_vert->rung_id_];
-    double traverse_length = (cap_rung.path_pts_.front() - cap_rung.path_pts_.back()).norm();
-    const auto dt = traverse_length / cap_rung.linear_vel_;
+    graphs.clear();
+    graph_indices.clear();
 
-    model.setPlanningScene(cap_rung.planning_scene_);
-    auto unit_ladder_graph = sampleSingleConfig(model,
-                                                cap_rungs_[ptr_last_cap_vert->rung_id_].path_pts_,
-                                                dt,
-                                                ptr_last_cap_vert->orientation_,
-                                                ptr_last_cap_vert->z_axis_angle_);
+    // find min cap_vert on last cap_rung
+    CapVert* ptr_last_cap_vert = *std::min_element(this->cap_rungs_.back().ptr_cap_verts_.begin(),
+                                                   this->cap_rungs_.back().ptr_cap_verts_.end(), comparePtrCapVert);
+    while (ptr_last_cap_vert != NULL)
+    {
+      // construct unit ladder graph for each cap rungpath_pts_
+      const auto cap_rung = cap_rungs_[ptr_last_cap_vert->rung_id_];
+      double traverse_length = (cap_rung.path_pts_.front() - cap_rung.path_pts_.back()).norm();
+      const auto dt = traverse_length / cap_rung.linear_vel_;
 
-    graphs.insert(graphs.begin(), unit_ladder_graph);
-    graph_indices.insert(graph_indices.begin(), unit_ladder_graph.size());
-    ptr_last_cap_vert = ptr_last_cap_vert->getParentVertPtr();
+      model.setPlanningScene(cap_rung.planning_scene_);
+      auto unit_ladder_graph = sampleSingleConfig(model,
+                                                  cap_rungs_[ptr_last_cap_vert->rung_id_].path_pts_,
+                                                  dt,
+                                                  ptr_last_cap_vert->orientation_,
+                                                  ptr_last_cap_vert->z_axis_angle_);
+
+      graphs.insert(graphs.begin(), unit_ladder_graph);
+      graph_indices.insert(graph_indices.begin(), unit_ladder_graph.size());
+      ptr_last_cap_vert = ptr_last_cap_vert->getParentVertPtr();
+    }
+  }
+  else
+  {
+    graph_indices.clear();
+    for(const auto& graph : graphs)
+    {
+      graph_indices.push_back(graph.size());
+    }
   }
 
   // unify unit ladder graphs into one
   descartes_planner::LadderGraph unified_graph(model.getDOF());
   for(auto& graph : graphs)
   {
+    assert(unified_graph.dof() == graph.dof());
     descartes_planner::appendInTime(unified_graph, graph);
   }
 
@@ -458,5 +473,4 @@ void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& mo
   ROS_INFO_STREAM("[CLTRRT] Graph construction and searching took: "
                       << (graph_build_end - graph_build_start).toSec() << " seconds");
 }
-
 } //end namespace descartes planner

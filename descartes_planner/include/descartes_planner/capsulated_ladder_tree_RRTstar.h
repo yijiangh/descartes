@@ -32,7 +32,9 @@ class CapsulatedLadderTreeRRTstar
   // construct ladder graph for each capsule and apply DAG search to get full trajectory solution
   void extractSolution(descartes_core::RobotModel& model,
                        std::vector<descartes_core::TrajectoryPtPtr>& sol,
-                       std::vector<std::size_t>& graph_indices);
+                       std::vector<descartes_planner::LadderGraph>& graphs,
+                       std::vector<int>& graph_indices,
+                       const bool use_saved_graph);
 
  private:
   std::vector<CapRung> cap_rungs_;

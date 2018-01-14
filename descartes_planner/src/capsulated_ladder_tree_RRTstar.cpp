@@ -126,7 +126,6 @@ bool checkFeasibility(
   // sanity check
   assert(poses.size() == cap_rung.path_pts_.size());
 
-  model.setPlanningScene(cap_rung.planning_scene_);
   std::vector<double> st_jt;
   std::vector<double> end_jt;
 
@@ -144,6 +143,17 @@ bool checkFeasibility(
   for(size_t c_id = 0; c_id < poses.size(); c_id++)
   {
     joint_poses.clear();
+
+    if(c_id < poses.size() - 1)
+    {
+      model.setPlanningScene(cap_rung.planning_scene_);
+    }
+    else
+    {
+      // the last pose, prevent eef collide with element being printed
+      model.setPlanningScene(cap_rung.planning_scene_completed_);
+    }
+
     model.getAllIK(poses[c_id], joint_poses);
 
     if(joint_poses.empty())
@@ -224,7 +234,8 @@ namespace descartes_planner
 {
 CapsulatedLadderTreeRRTstar::CapsulatedLadderTreeRRTstar(
     const std::vector<ConstrainedSegment>& segs,
-    const std::vector<planning_scene::PlanningScenePtr>& planning_scenes)
+    const std::vector<planning_scene::PlanningScenePtr>& planning_scenes,
+    const std::vector<planning_scene::PlanningScenePtr>& planning_scenes_completed)
 {
   // sanity check
   assert(segs.size() == planning_scenes.size());
@@ -248,6 +259,7 @@ CapsulatedLadderTreeRRTstar::CapsulatedLadderTreeRRTstar(
 
     // planning scene
     cap_rung.planning_scene_ = planning_scenes[i];
+    cap_rung.planning_scene_completed_ = planning_scenes_completed[i];
 
     // conflict indices is empty initially
 

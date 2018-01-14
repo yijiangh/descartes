@@ -118,6 +118,10 @@ struct CapRung
   std::vector<Eigen::Vector3d> path_pts_;
   std::vector<Eigen::Matrix3d> orientations_;
   planning_scene::PlanningScenePtr planning_scene_;
+
+  // TODO: this is temporal patch to add element that is being printed
+  planning_scene::PlanningScenePtr planning_scene_completed_;
+
   std::set<size_t> conflict_ids_;
   double z_axis_disc_;
   double linear_vel_;

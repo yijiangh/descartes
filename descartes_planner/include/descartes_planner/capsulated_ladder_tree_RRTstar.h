@@ -21,7 +21,8 @@ class CapsulatedLadderTreeRRTstar
  public:
   explicit CapsulatedLadderTreeRRTstar(
       const std::vector<ConstrainedSegment>& segs,
-      const std::vector<planning_scene::PlanningScenePtr>& planning_scenes);
+      const std::vector<planning_scene::PlanningScenePtr>& planning_scenes,
+      const std::vector<planning_scene::PlanningScenePtr>& planning_scenes_completed);
 
   ~CapsulatedLadderTreeRRTstar();
 

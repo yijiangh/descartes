@@ -324,22 +324,6 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
                                                 << " fails to find intial feasible sol within timeout "
                                                 << UNIT_PROCESS_TIMEOUT << "secs");
       return std::numeric_limits<double>::max();
-//      if(domainDiscreteEnumerationCheck(model, cap_rung, cap_vert))
-//      {
-//        // enumeration solution found!
-//        cap_vert.setParentVertPtr(ptr_prev_vert);
-//        cap_vert.rung_id_ = rung_id;
-//        cap_rung.cap_verts_.push_back(cap_vert);
-//      }
-//      else
-//      {
-//        ROS_ERROR_STREAM("[CapRRTstar] process #" << rung_id
-//                                                 << " fails to find initial feasible sol with input z_axis disc num: "
-//                                                 << std::lround( 2 * M_PI / cap_rung.z_axis_disc_)
-//                                                  << ", orientations num: " << cap_rung.orientations_.size()
-//                                                  << ", path pts size" << cap_rung.path_pts_.size());
-//        return std::numeric_limits<double>::max();
-//
     }
 
     ROS_INFO_STREAM("[CLTRRT] ik solutions found for process #" << rung_id);

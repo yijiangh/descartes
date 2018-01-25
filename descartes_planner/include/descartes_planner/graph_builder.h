@@ -25,6 +25,8 @@ struct ConstrainedSegment
   double z_axis_disc; /** The distance between angular steps about z for each orientation */
   double retract_dist;
 
+  bool process_type; /** = 1: creation type, one node is floating; = 0: connection, both of the nodes have been printed */
+
   int retract_start_pt_num;
   int process_pt_num;
   int retract_end_pt_num;

@@ -16,7 +16,7 @@
 // unit process sampling timeout in initial solution searching
 const static double UNIT_PROCESS_TIMEOUT = 30.0;
 // total timeout for RRTstar
-const static double RRTSTAR_TIMEOUT = 60.0;
+const static double RRTSTAR_TIMEOUT = 1200.0;
 
 namespace // anon namespace to hide utility functions
 {
@@ -348,7 +348,7 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
 
   double initial_sol_cost = cap_rungs_.back().ptr_cap_verts_.back()->getCost();
   ROS_INFO_STREAM("[CLTRRT] initial sol found! cost: " << initial_sol_cost);
-  ROS_INFO_STREAM("[CLTRRT] RRT* improvement starts.");
+  ROS_INFO_STREAM("[CLTRRT] RRT* improvement starts, computation time: " << RRTSTAR_TIMEOUT);
 
   // RRT* improve on the tree
   const auto rrt_start_time = ros::Time::now();

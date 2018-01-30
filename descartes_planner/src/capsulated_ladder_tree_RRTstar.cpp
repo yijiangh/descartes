@@ -113,6 +113,17 @@ std::vector<Eigen::Affine3d> generateSample(const descartes_planner::CapRung& ca
 
   cap_vert.z_axis_angle_ = x_axis_sample;
   cap_vert.orientation_ = orientation_sample;
+
+  Eigen::Vector3d element_direction = cap_rung.path_pts_.back() - cap_rung.path_pts_.front();
+  element_direction.normalize();
+
+  auto os = orientation_sample.col(2);
+  os.normalize();
+
+  double angle_theta = acos(os.dot(element_direction));
+
+  cap_vert.delta_o_to_ideal_angle_ = abs(angle_theta - cap_rung.ideal_o_to_element_angle);
+
   return poses;
 }
 
@@ -255,6 +266,17 @@ CapsulatedLadderTreeRRTstar::CapsulatedLadderTreeRRTstar(
     for (auto& orient : segs[i].orientations)
     {
       cap_rung.orientations_.push_back(orient);
+    }
+
+    if(ConstrainedSegment::PROCESS_TYPE::CONNECT == segs[i].process_type)
+    {
+      // ideal orientation orthogonal to the element
+      cap_rung.ideal_o_to_element_angle = M_PI / 2;
+    }
+    else
+    {
+      // ideal orientation is aligned to the element
+      cap_rung.ideal_o_to_element_angle = 0.0;
     }
 
     // planning scene

@@ -16,6 +16,13 @@ namespace descartes_planner
 
 struct ConstrainedSegment
 {
+  enum PROCESS_TYPE
+  {
+    CREATE,
+    CONNECT,
+    SUPPORT
+  };
+
   using OrientationVector = std::vector<Eigen::Matrix3d, Eigen::aligned_allocator<Eigen::Matrix3d>>;
 
   Eigen::Vector3d start, end; /** Start and end of the linear segment in 3-space */
@@ -25,7 +32,7 @@ struct ConstrainedSegment
   double z_axis_disc; /** The distance between angular steps about z for each orientation */
   double retract_dist;
 
-  bool process_type; /** = 1: creation type, one node is floating; = 0: connection, both of the nodes have been printed */
+  PROCESS_TYPE process_type; /** create type, one node is floating; connect type, both of the nodes have been printed */
 
   int retract_start_pt_num;
   int process_pt_num;

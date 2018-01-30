@@ -10,6 +10,8 @@
 
 #include <moveit/planning_scene/planning_scene.h>
 
+const static double ORIENTATION_PREFERENCE_WEIGHT = 0.0;
+
 namespace descartes_planner
 {
 
@@ -74,7 +76,7 @@ class CapVert
   inline void setParentVertPtr(CapVert* ptr_v)
   {
     this->ptr_prev_cap_vert_ = ptr_v;
-    this->to_parent_cost_ = this->distance(ptr_v);
+    this->to_parent_cost_ = this->distance(ptr_v) + ORIENTATION_PREFERENCE_WEIGHT * delta_o_to_ideal_angle_;
   }
 
   // accumulated cost (the function g)
@@ -107,6 +109,8 @@ class CapVert
   double z_axis_angle_;
   Eigen::Matrix3d orientation_;
 
+  double delta_o_to_ideal_angle_;
+
   double to_parent_cost_;
   CapVert* ptr_prev_cap_vert_;
 };
@@ -117,6 +121,8 @@ struct CapRung
 
   std::vector<Eigen::Vector3d> path_pts_;
   std::vector<Eigen::Matrix3d> orientations_;
+  double ideal_o_to_element_angle; // radians
+
   planning_scene::PlanningScenePtr planning_scene_;
 
   // TODO: this is temporal patch to add element that is being printed

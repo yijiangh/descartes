@@ -13,10 +13,7 @@
 #include <eigen_conversions/eigen_msg.h>
 #include <geometry_msgs/Pose.h>
 
-// unit process sampling timeout in initial solution searching
-const static double UNIT_PROCESS_TIMEOUT = 30.0;
-// total timeout for RRTstar
-const static double RRTSTAR_TIMEOUT = 1200.0;
+static const double DEFAULT_UNIT_PROCESS_TIMEOUT = 30.0;
 
 namespace // anon namespace to hide utility functions
 {
@@ -310,8 +307,24 @@ CapsulatedLadderTreeRRTstar::~CapsulatedLadderTreeRRTstar()
   }
 }
 
-double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
+double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model,
+                                          double unit_process_timeout,
+                                          double rrt_star_timeout)
 {
+  if(unit_process_timeout < 1.0)
+  {
+    logWarn("[CLT-RRT] unit process sampling timeout %f s, smaller than 1.0, set to default timeout %f s",
+            unit_process_timeout, DEFAULT_UNIT_PROCESS_TIMEOUT);
+    unit_process_timeout = DEFAULT_UNIT_PROCESS_TIMEOUT;
+  }
+
+  if(rrt_star_timeout < 5.0)
+  {
+    rrt_star_timeout = 4*cap_rungs_.size();
+    logWarn("[CLT-RRT] rrt star timeout %f s, smaller than 5.0s, set to default timeout %f s",
+            rrt_star_timeout, rrt_star_timeout);
+  }
+
   // find initial solution
   size_t rung_id = 0;
   CapVert* ptr_prev_vert = NULL;
@@ -337,14 +350,14 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
 
       unit_search_update = ros::Time::now();
     }
-    while((unit_search_update - unit_search_start).toSec() < UNIT_PROCESS_TIMEOUT);
+    while((unit_search_update - unit_search_start).toSec() < unit_process_timeout);
 
     if(cap_rung.ptr_cap_verts_.empty())
     {
       // random sampling fails to find a solution
       ROS_ERROR_STREAM("[CapRRTstar] process #" << rung_id
                                                 << " fails to find intial feasible sol within timeout "
-                                                << UNIT_PROCESS_TIMEOUT << "secs");
+                                                << unit_process_timeout << "secs");
       return std::numeric_limits<double>::max();
     }
 
@@ -354,12 +367,12 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
 
   double initial_sol_cost = cap_rungs_.back().ptr_cap_verts_.back()->getCost();
   ROS_INFO_STREAM("[CLTRRT] initial sol found! cost: " << initial_sol_cost);
-  ROS_INFO_STREAM("[CLTRRT] RRT* improvement starts, computation time: " << RRTSTAR_TIMEOUT);
+  ROS_INFO_STREAM("[CLTRRT] RRT* improvement starts, computation time: " << rrt_star_timeout);
 
   // RRT* improve on the tree
   const auto rrt_start_time = ros::Time::now();
 
-  while((ros::Time::now() - rrt_start_time).toSec() < RRTSTAR_TIMEOUT)
+  while((ros::Time::now() - rrt_start_time).toSec() < rrt_star_timeout)
   {
     // sample cap_rung
     int rung_id_sample = randomSampleInt(0, cap_rungs_.size()-1);
@@ -415,7 +428,7 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model)
   double rrt_cost = ptr_last_cap_vert->getCost();
 
   ROS_INFO_STREAM("[CLTRRT] RRT* sol cost " << rrt_cost
-                                            << " after " << RRTSTAR_TIMEOUT << " secs.");
+                                            << " after " << rrt_star_timeout << " secs.");
   return rrt_cost;
 }
 
@@ -426,6 +439,7 @@ void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& mo
                                                   const bool use_saved_graph)
 {
   const auto graph_build_start = ros::Time::now();
+  const int dof = model.getDOF();
 
   if(!use_saved_graph)
   {
@@ -483,7 +497,7 @@ void CapsulatedLadderTreeRRTstar::extractSolution(descartes_core::RobotModel& mo
     const auto* data = unified_graph.vertex(j, idx);
     const auto& tm = unified_graph.getRung(j).timing;
     auto pt = descartes_core::TrajectoryPtPtr(new descartes_trajectory::JointTrajectoryPt(
-        std::vector<double>(data, data + 6), tm));
+        std::vector<double>(data, data + dof), tm));
     sol.push_back(pt);
   }
 

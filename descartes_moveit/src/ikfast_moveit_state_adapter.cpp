@@ -145,16 +145,16 @@ bool descartes_moveit::IkFastMoveitStateAdapter::computeIKFastTransforms()
 
   if (!robot_state_->knowsFrameTransform(ikfast_base_frame))
   {
-    logError("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
+    logWarn("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
              ikfast_base_frame.c_str(), group_name_.c_str());
-    return false;
+//    return false;
   }
 
   if (!robot_state_->knowsFrameTransform(ikfast_tool_frame))
   {
-    logError("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
+    logWarn("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
              ikfast_tool_frame.c_str(), group_name_.c_str());
-    return false;
+//    return false;
   }
 
   // calculate frames

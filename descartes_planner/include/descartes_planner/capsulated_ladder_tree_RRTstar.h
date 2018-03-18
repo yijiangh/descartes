@@ -28,7 +28,7 @@ class CapsulatedLadderTreeRRTstar
 
   // use RRT* on a ladder tree to get optimal capsulated solution
   // return the cost of the solution, if no sol found, return numerical max
-  double solve(descartes_core::RobotModel& model);
+  double solve(descartes_core::RobotModel& model, double clt_rrt_unit_process_timeout, double clt_rrt_timeout);
 
   // construct ladder graph for each capsule and apply DAG search to get full trajectory solution
   void extractSolution(descartes_core::RobotModel& model,

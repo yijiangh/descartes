@@ -100,14 +100,14 @@ bool MoveitStateAdapter::initialize(robot_model::RobotModelConstPtr robot_model,
     return false;
   }
 
-  const auto& link_names = joint_group_->getLinkModelNames();
-  if (tool_frame_ != link_names.back())
-  {
-    logError("%s: Tool frame '%s' does not match group tool frame '%s', functionality"
-             "will be implemented in the future",
-             __FUNCTION__, tool_frame_.c_str(), link_names.back().c_str());
-    return false;
-  }
+//  const auto& link_names = joint_group_->getLinkModelNames();
+//  if (tool_frame_ != link_names.back())
+//  {
+//    logError("%s: Tool frame '%s' does not match group tool frame '%s', functionality"
+//             "will be implemented in the future",
+//             __FUNCTION__, tool_frame_.c_str(), link_names.back().c_str());
+//    return false;
+//  }
 
   if (!::getJointVelocityLimits(*robot_state_, group_name, velocity_limits_))
   {
@@ -245,6 +245,12 @@ bool MoveitStateAdapter::isInCollision(const std::vector<double>& joint_pose) co
   return in_collision;
 }
 
+bool MoveitStateAdapter::isInLimits(const std::vector<double> &joint_pose) const
+{
+  // Satisfies joint positional bounds?
+  return joint_group_->satisfiesPositionBounds(joint_pose.data());
+}
+
 bool MoveitStateAdapter::getFK(const std::vector<double>& joint_pose, Eigen::Affine3d& pose) const
 {
   bool rtn = false;
@@ -283,10 +289,11 @@ bool MoveitStateAdapter::isValid(const std::vector<double>& joint_pose) const
   }
 
   // Satisfies joint positional bounds?
-  if (!joint_group_->satisfiesPositionBounds(joint_pose.data()))
+  if (!isInLimits(joint_pose))
   {
     return false;
   }
+
   // Is in collision (if collision is active)
   return !isInCollision(joint_pose);
 }

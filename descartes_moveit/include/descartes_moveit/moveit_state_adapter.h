@@ -102,7 +102,7 @@ public:
     planning_scene_ = scene;
   }
 
-protected:
+ protected:
   /**
    * Gets IK solution (assumes robot state is pre-seeded)
    * @param pose Affine pose of TOOL in WOBJ frame
@@ -117,6 +117,8 @@ protected:
    * @param joint_pose the joint values at which check for collisions will be made
    */
   bool isInCollision(const std::vector<double> &joint_pose) const;
+
+  bool isInLimits(const std::vector<double>& joint_pose) const;
 
   /**
    * Maximum joint velocities (rad/s) for each joint in the chain. Used for checking in

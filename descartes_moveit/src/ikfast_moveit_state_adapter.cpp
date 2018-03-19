@@ -82,10 +82,51 @@ bool descartes_moveit::IkFastMoveitStateAdapter::getAllIK(const Eigen::Affine3d&
   std::vector<std::vector<double>> joint_results;
   kinematics::KinematicsResult result;
   kinematics::KinematicsQueryOptions options;  // defaults are reasonable as of Indigo
+  options.discretization_method = kinematics::DiscretizationMethods::ALL_DISCRETIZED;
 
   if (!solver->getPositionIK(poses, dummy_seed, joint_results, result, options))
   {
     return false;
+  }
+
+  const auto dof = getDOF();
+  const auto index6 = dof - 1;
+  const auto index4 = dof - 3;
+
+  auto search_extras = [this, &joint_poses, index6, index4](std::vector<double>& sol)
+  {
+    bool collision_checked = false;
+
+    const double joint6 = sol[index6];
+    const double joint4 = sol[index4];
+
+    for (int i = -1; i <= 1; ++i)
+    {
+      sol[index6] = joint6 + i * 2.0 * M_PI;
+      for (int j = -1; j <= 1; ++j)
+      {
+        sol[index4] = joint4 + j * 2.0 * M_PI;
+
+        // Compute relative distance between 4 & 6
+        const auto windup = std::abs(sol[index6] - sol[index4]);
+        const static auto windup_limit = 3.0 * M_PI;
+
+        if (isInLimits(sol) && windup < windup_limit)
+        {
+          if (!collision_checked)
+          {
+            if (isInCollision(sol)) return;
+            else collision_checked = true;
+          }
+          joint_poses.push_back(sol);
+        } // in limits
+      }
+    }
+  };
+
+  for (auto& sol : joint_results)
+  {
+    search_extras(sol);
   }
 
   for (auto& sol : joint_results)
@@ -145,16 +186,16 @@ bool descartes_moveit::IkFastMoveitStateAdapter::computeIKFastTransforms()
 
   if (!robot_state_->knowsFrameTransform(ikfast_base_frame))
   {
-    logWarn("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
+    logError("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
              ikfast_base_frame.c_str(), group_name_.c_str());
-//    return false;
+    return false;
   }
 
   if (!robot_state_->knowsFrameTransform(ikfast_tool_frame))
   {
-    logWarn("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
+    logError("IkFastMoveitStateAdapter: Cannot find transformation to frame '%s' in group '%s'.",
              ikfast_tool_frame.c_str(), group_name_.c_str());
-//    return false;
+    return false;
   }
 
   // calculate frames

@@ -72,8 +72,14 @@ bool MoveitStateAdapter::initialize(const std::string& robot_description, const 
 {
   // Initialize MoveIt state objects
   robot_model_loader_.reset(new robot_model_loader::RobotModelLoader(robot_description));
+  auto model = robot_model_loader_->getModel();
+  if (!model)
+  {
+    logError("Failed to load robot model from robot description parameter: %s", robot_description.c_str());
+    return false;
+  }
 
-  return initialize(robot_model_loader_->getModel(), group_name, world_frame, tcp_frame);
+  return initialize(model, group_name, world_frame, tcp_frame);
 }
 
 bool MoveitStateAdapter::initialize(robot_model::RobotModelConstPtr robot_model, const std::string &group_name,
@@ -100,14 +106,14 @@ bool MoveitStateAdapter::initialize(robot_model::RobotModelConstPtr robot_model,
     return false;
   }
 
-//  const auto& link_names = joint_group_->getLinkModelNames();
-//  if (tool_frame_ != link_names.back())
-//  {
-//    logError("%s: Tool frame '%s' does not match group tool frame '%s', functionality"
-//             "will be implemented in the future",
-//             __FUNCTION__, tool_frame_.c_str(), link_names.back().c_str());
-//    return false;
-//  }
+  const auto& link_names = joint_group_->getLinkModelNames();
+  if (tool_frame_ != link_names.back())
+  {
+    logError("%s: Tool frame '%s' does not match group tool frame '%s', functionality"
+             "will be implemented in the future",
+             __FUNCTION__, tool_frame_.c_str(), link_names.back().c_str());
+    return false;
+  }
 
   if (!::getJointVelocityLimits(*robot_state_, group_name, velocity_limits_))
   {
@@ -239,15 +245,16 @@ bool MoveitStateAdapter::isInCollision(const std::vector<double>& joint_pose) co
   bool in_collision = false;
   if (check_collisions_)
   {
-    robot_state_->setJointGroupPositions(group_name_, joint_pose);
-    in_collision = planning_scene_->isStateColliding(*robot_state_, group_name_);
+    moveit::core::RobotState state (robot_model_ptr_);
+    state.setToDefaultValues();
+    state.setJointGroupPositions(joint_group_, joint_pose);
+    in_collision = planning_scene_->isStateColliding(state, group_name_);
   }
   return in_collision;
 }
 
 bool MoveitStateAdapter::isInLimits(const std::vector<double> &joint_pose) const
 {
-  // Satisfies joint positional bounds?
   return joint_group_->satisfiesPositionBounds(joint_pose.data());
 }
 
@@ -288,14 +295,7 @@ bool MoveitStateAdapter::isValid(const std::vector<double>& joint_pose) const
     return false;
   }
 
-  // Satisfies joint positional bounds?
-  if (!isInLimits(joint_pose))
-  {
-    return false;
-  }
-
-  // Is in collision (if collision is active)
-  return !isInCollision(joint_pose);
+  return isInLimits(joint_pose) && !isInCollision(joint_pose);
 }
 
 bool MoveitStateAdapter::isValid(const Eigen::Affine3d& pose) const

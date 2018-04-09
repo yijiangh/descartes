@@ -22,6 +22,8 @@
 #include "descartes_core/pretty_print.hpp"
 #include "descartes_moveit/seed_search.h"
 
+#include <moveit/collision_detection/collision_common.h>
+
 #include <eigen_conversions/eigen_msg.h>
 #include <random_numbers/random_numbers.h>
 #include <ros/assert.h>
@@ -63,8 +65,11 @@ bool getJointVelocityLimits(const moveit::core::RobotState& state, const std::st
 
 namespace descartes_moveit
 {
-MoveitStateAdapter::MoveitStateAdapter() : world_to_root_(Eigen::Affine3d::Identity())
+MoveitStateAdapter::MoveitStateAdapter()
+    : world_to_root_(Eigen::Affine3d::Identity()),
+      use_acm_(false)
 {
+  acm_.reset(new collision_detection::AllowedCollisionMatrix());
 }
 
 bool MoveitStateAdapter::initialize(const std::string& robot_description, const std::string& group_name,
@@ -247,7 +252,21 @@ bool MoveitStateAdapter::isInCollision(const std::vector<double>& joint_pose) co
     moveit::core::RobotState state (robot_model_ptr_);
     state.setToDefaultValues();
     state.setJointGroupPositions(joint_group_, joint_pose);
-    in_collision = planning_scene_->isStateColliding(state, group_name_);
+
+    if(use_acm_)
+    {
+      collision_detection::CollisionRequest c_req;
+      c_req.group_name = group_name_;
+
+      collision_detection::CollisionResult c_res;
+
+      planning_scene_->checkCollision(c_req, c_res, state, *acm_);
+      in_collision = c_res.collision;
+    }
+    else
+    {
+      in_collision = planning_scene_->isStateColliding(state, group_name_);
+    }
   }
   return in_collision;
 }

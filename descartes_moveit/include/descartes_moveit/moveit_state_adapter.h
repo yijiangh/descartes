@@ -103,7 +103,7 @@ public:
     planning_scene_ = scene;
   }
 
-  virtual void setAllowedCollisionMatrix(collision_detection::AllowedCollisionMatrixPtr acm)
+  virtual void setAllowedCollisionMatrix(collision_detection::AllowedCollisionMatrix acm)
   {
     acm_ = acm;
   }
@@ -141,7 +141,7 @@ public:
 
   mutable planning_scene::PlanningScenePtr planning_scene_;
 
-  mutable collision_detection::AllowedCollisionMatrixPtr acm_;
+  mutable collision_detection::AllowedCollisionMatrix acm_;
 
   robot_model::RobotModelConstPtr robot_model_ptr_;
 

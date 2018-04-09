@@ -69,7 +69,7 @@ MoveitStateAdapter::MoveitStateAdapter()
     : world_to_root_(Eigen::Affine3d::Identity()),
       use_acm_(false)
 {
-  acm_.reset(new collision_detection::AllowedCollisionMatrix());
+  acm_= collision_detection::AllowedCollisionMatrix();
 }
 
 bool MoveitStateAdapter::initialize(const std::string& robot_description, const std::string& group_name,
@@ -260,7 +260,7 @@ bool MoveitStateAdapter::isInCollision(const std::vector<double>& joint_pose) co
 
       collision_detection::CollisionResult c_res;
 
-      planning_scene_->checkCollision(c_req, c_res, state, *acm_);
+      planning_scene_->checkCollision(c_req, c_res, state, acm_);
       in_collision = c_res.collision;
     }
     else

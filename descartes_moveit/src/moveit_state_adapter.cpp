@@ -109,10 +109,9 @@ bool MoveitStateAdapter::initialize(robot_model::RobotModelConstPtr robot_model,
   const auto& link_names = joint_group_->getLinkModelNames();
   if (tool_frame_ != link_names.back())
   {
-    logError("%s: Tool frame '%s' does not match group tool frame '%s', functionality"
-             "will be implemented in the future",
+    logWarn("%s: Tool frame '%s' does not match group tool frame '%s'.",
              __FUNCTION__, tool_frame_.c_str(), link_names.back().c_str());
-    return false;
+//    return false;
   }
 
   if (!::getJointVelocityLimits(*robot_state_, group_name, velocity_limits_))

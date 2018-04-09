@@ -61,8 +61,8 @@ add_library(descartes_planner
             src/plugin_init.cpp
             src/ladder_graph_dag_search.cpp
             src/ladder_graph_dag_search_lazy_collision.cpp
-            src/graph_builder.cpp
-            src/capsulated_ladder_tree_RRTstar.cpp
+#            src/graph_builder.cpp
+#            src/capsulated_ladder_tree_RRTstar.cpp
 )
 
 target_link_libraries(descartes_planner

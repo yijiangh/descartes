@@ -79,7 +79,14 @@ descartes_msgs::LadderGraphList convertToLadderGraphListMsg(
 
   for(int i = 0; i < graphs.size(); i++)
   {
-    graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(graphs[i], graph_indices[i]));
+    if(graph_indices.size() > i)
+    {
+      graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(graphs[i], graph_indices[i]));
+    }
+    else
+    {
+      graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(graphs[i]));
+    }
   }
 
   return graph_list_msg;

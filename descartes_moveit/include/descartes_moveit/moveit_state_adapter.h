@@ -22,6 +22,7 @@
 #include "descartes_core/robot_model.h"
 #include "descartes_trajectory/cart_trajectory_pt.h"
 #include <moveit/planning_scene/planning_scene.h>
+#include <moveit/collision_detection/collision_matrix.h>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
@@ -102,6 +103,16 @@ public:
     planning_scene_ = scene;
   }
 
+  virtual void setAllowedCollisionMatrix(collision_detection::AllowedCollisionMatrix acm)
+  {
+    acm_ = acm;
+  }
+
+  void setUseAllowedCollisionMatrix(const bool& enable)
+  {
+    use_acm_ = enable;
+  }
+
  protected:
   /**
    * Gets IK solution (assumes robot state is pre-seeded)
@@ -130,11 +141,15 @@ public:
 
   mutable planning_scene::PlanningScenePtr planning_scene_;
 
+  mutable collision_detection::AllowedCollisionMatrix acm_;
+
   robot_model::RobotModelConstPtr robot_model_ptr_;
 
   robot_model_loader::RobotModelLoaderPtr robot_model_loader_;
 
   const moveit::core::JointModelGroup *joint_group_;
+
+  bool use_acm_;
 
   /**
    * @brief Vector of starting configurations for the numerical solver

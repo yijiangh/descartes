@@ -66,13 +66,27 @@ descartes_msgs::LadderGraph convertToLadderGraphMsg(const descartes_planner::Lad
   return graph_msg;
 }
 
-descartes_msgs::LadderGraphList convertToLadderGraphMsg(const std::vector<descartes_planner::LadderGraph>& graphs)
+descartes_msgs::LadderGraphList convertToLadderGraphListMsg(
+    const std::vector<descartes_planner::LadderGraph>& graphs,
+    std::vector<std::vector<int>> graph_indices)
 {
+  if(graph_indices.size() > 0)
+  {
+    assert(graph_indices.size() == graphs.size());
+  }
+
   descartes_msgs::LadderGraphList graph_list_msg;
 
-  for(const auto& unit_graph : graphs)
+  for(int i = 0; i < graphs.size(); i++)
   {
-    graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(unit_graph));
+    if(graph_indices.size() > i)
+    {
+      graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(graphs[i], graph_indices[i]));
+    }
+    else
+    {
+      graph_list_msg.graph_list.push_back(convertToLadderGraphMsg(graphs[i]));
+    }
   }
 
   return graph_list_msg;
@@ -118,6 +132,13 @@ descartes_planner::LadderGraph convertToLadderGraph(const descartes_msgs::Ladder
   return graph;
 }
 
+descartes_planner::LadderGraph convertToLadderGraph(const descartes_msgs::LadderGraph& graph_msg, std::vector<int>& partition_ids)
+{
+  partition_ids = graph_msg.graph_indices;
+
+  return convertToLadderGraph(graph_msg);
+}
+
 std::vector<descartes_planner::LadderGraph> convertToLadderGraphList(const descartes_msgs::LadderGraphList& graph_list_msg)
 {
   std::vector<descartes_planner::LadderGraph> graph_list;
@@ -130,4 +151,22 @@ std::vector<descartes_planner::LadderGraph> convertToLadderGraphList(const desca
 
   return graph_list;
 }
+
+std::vector<descartes_planner::LadderGraph> convertToLadderGraphList(
+    const descartes_msgs::LadderGraphList& graph_list_msg, std::vector<std::vector<int>>& partition_ids)
+{
+  std::vector<descartes_planner::LadderGraph> graph_list;
+  graph_list.reserve(graph_list_msg.graph_list.size());
+
+  partition_ids.clear();
+  for(const auto& graph_msg : graph_list_msg.graph_list)
+  {
+    std::vector<int> g_ids;
+    graph_list.push_back(convertToLadderGraph(graph_msg, g_ids));
+    partition_ids.push_back(g_ids);
+  }
+
+  return graph_list;
+}
+
 } // end namespace descartes_parser

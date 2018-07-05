@@ -313,7 +313,7 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model,
 {
   if(unit_process_timeout < 1.0)
   {
-    logWarn("[CLT-RRT] unit process sampling timeout %.2f s, smaller than 1.0, set to default timeout %.2f s",
+    CONSOLE_BRIDGE_logWarn("[CLT-RRT] unit process sampling timeout %.2f s, smaller than 1.0, set to default timeout %.2f s",
             unit_process_timeout, DEFAULT_UNIT_PROCESS_TIMEOUT);
     unit_process_timeout = DEFAULT_UNIT_PROCESS_TIMEOUT;
   }
@@ -321,7 +321,7 @@ double CapsulatedLadderTreeRRTstar::solve(descartes_core::RobotModel& model,
   if(rrt_star_timeout < 5.0)
   {
     rrt_star_timeout = 4*cap_rungs_.size();
-    logWarn("[CLT-RRT] rrt star timeout %.2f s, smaller than 5.0s, set to default timeout %.2f s",
+    CONSOLE_BRIDGE_logWarn("[CLT-RRT] rrt star timeout %.2f s, smaller than 5.0s, set to default timeout %.2f s",
             rrt_star_timeout, rrt_star_timeout);
   }
 
